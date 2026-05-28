@@ -1,0 +1,245 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===================== YOGA INTELLIGENCE GREEN-THEMED MOBILE-FIRST STYLES ===================== */
+
+@layer base {
+  :root {
+    /* GREEN-FOCUSED COLOR PALETTE */
+    --background: 43 60% 98%;           /* #FDFAF5 warm cream */
+    --foreground: 0 0% 10%;             /* #1A1A1A */
+    --card: 0 0% 100%;                  /* #FFFFFF */
+    --card-foreground: 0 0% 10%;        /* #1A1A1A */
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 109 45% 35%;             /* #3A7D2C forest green */
+    --primary-foreground: 0 0% 100%;    /* white */
+    --secondary: 109 55% 45%;           /* #4CAF50 bright green */
+    --secondary-foreground: 0 0% 100%;
+    --accent: 26 87% 52%;               /* #F07A1A orange accent */
+    --accent-foreground: 0 0% 10%;
+    --muted: 40 33% 96%;
+    --muted-foreground: 215 14% 44%;    /* #6B7280 */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 109 45% 35%;                /* green focus ring */
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Offset anchor jumps so sections clear the fixed navbar */
+    scroll-padding-top: 6rem;
+    -webkit-tap-highlight-color: rgba(58, 125, 44, 0.1);
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-[#FDFAF5] text-[#1A1A1A];
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01";
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p { text-wrap: pretty; }
+
+  /* Mobile-optimized typography */
+  @media (max-width: 768px) {
+    h1 { font-size: 2rem; }      /* 32px */
+    h2 { font-size: 1.75rem; }   /* 28px */
+    h3 { font-size: 1.5rem; }    /* 24px */
+    body { font-size: 15px; }
+  }
+
+  ::selection {
+    background-color: rgba(240, 122, 26, 0.22);
+    color: #1A1A1A;
+  }
+
+  /* Accessible, on-brand focus ring */
+  :focus-visible {
+    outline: 2px solid #F07A1A;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Respect reduced-motion globally */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ===================== MOBILE-FIRST UTILITIES ===================== */
+
+.container-yi {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-yi {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-yi {
+    max-width: 1200px;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.section-white { background: #FFFFFF; }
+.section-cream { background: #FDFAF5; }
+.section-alt { background: #F5FBF4; }
+.section-dark {
+  background: linear-gradient(135deg, #0F2212 0%, #1A3A1F 50%, #0F2212 100%);
+}
+
+.mobile-card {
+  @apply rounded-2xl bg-white border border-black/5 overflow-hidden;
+  box-shadow: 0 4px 20px rgba(16, 24, 40, 0.06);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mobile-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 12px rgba(16, 24, 40, 0.08);
+}
+
+@media (min-width: 768px) {
+  .mobile-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(58, 125, 44, 0.15);
+    border-color: rgba(58, 125, 44, 0.2);
+  }
+}
+
+.touch-btn {
+  min-height: 48px;
+  min-width: 48px;
+  touch-action: manipulation;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(16, 24, 40, 0.08);
+}
+
+.glass-dark {
+  background: rgba(15, 34, 18, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(76, 175, 80, 0.15);
+}
+
+/* Custom scrollbar - brand gradient */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #FDFAF5;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3A7D2C, #4CAF50 50%, #F07A1A);
+  border-radius: 8px;
+  border: 2px solid #FDFAF5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #2F6823, #3A7D2C 50%, #E56F12);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3A7D2C #FDFAF5;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Floating WhatsApp button */
+.floating-wa {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #25D366 0%, #1DA851 100%);
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: wa-pulse 2s ease-in-out infinite;
+}
+
+.floating-wa:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 32px rgba(37, 211, 102, 0.5);
+}
+
+.floating-wa:active {
+  transform: scale(0.95);
+}
+
+@keyframes wa-pulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4), 0 0 0 0 rgba(37, 211, 102, 0.6); }
+  50% { box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4), 0 0 0 12px rgba(37, 211, 102, 0); }
+}
+
+@media (max-width: 640px) {
+  .floating-wa {
+    width: 56px;
+    height: 56px;
+    bottom: 16px;
+    right: 16px;
+  }
+}
