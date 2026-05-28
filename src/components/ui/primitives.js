@@ -14,6 +14,17 @@ export function Tilt({ max = 8, scale = 1.02, className = "", children, ...rest 
   const rotateX = useTransform(sy, [-0.5, 0.5], [max, -max]);
   const rotateY = useTransform(sx, [-0.5, 0.5], [-max, max]);
 
+  // Only enable the 3D tilt on real mouse/fine-pointer devices that don't ask
+  // for reduced motion. On phones/tablets it's disabled entirely (no benefit,
+  // and synthetic touch events can make it glitch).
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    const ok =
+      window.matchMedia("(hover: hover) and (pointer: fine)").matches &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setEnabled(ok);
+  }, []);
+
   const handleMove = useCallback((e) => {
     const el = ref.current;
     if (!el) return;
@@ -23,6 +34,14 @@ export function Tilt({ max = 8, scale = 1.02, className = "", children, ...rest 
   }, [mx, my]);
 
   const reset = useCallback(() => { mx.set(0); my.set(0); }, [mx, my]);
+
+  if (!enabled) {
+    return (
+      <div className={className} {...rest}>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <motion.div

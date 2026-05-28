@@ -842,3 +842,70 @@
   pointer-events: none;
   box-shadow: inset 0 0 120px 24px rgba(15, 34, 18, 0.35);
 }
+
+/* ████████████████████████████████████████████████████████████████████
+   MOBILE PERFORMANCE + POLISH  (phones are the priority)
+   Phones choke on many simultaneous blur/animation layers, which causes
+   stutter that looks "glitchy". On small screens we keep the design but
+   make the heavy effects static/lighter so scrolling stays buttery.
+   ████████████████████████████████████████████████████████████████████ */
+@media (max-width: 1024px) {
+  /* Drifting leaves: lovely on desktop, clutter + cost on phones → remove */
+  .leaf-particle { display: none !important; }
+
+  /* Aurora: keep the soft glow but stop animating + reduce blur radius */
+  .aurora::before,
+  .aurora::after {
+    animation: none !important;
+    filter: blur(45px);
+    opacity: 0.3;
+    width: 72vw;
+    height: 72vw;
+  }
+
+  /* Big ambient blobs: stop the pulse animation (static blur is far cheaper) */
+  .animate-pulse-slow,
+  .animate-pulse-slower { animation: none !important; }
+
+  /* Animated gradient borders → static (no continuous repaint) */
+  .animated-border::before { animation: none !important; filter: none; opacity: 0.75; }
+  .conic-border::before { animation: none !important; }
+
+  /* Lighter, cheaper shadows */
+  .glow-green,
+  .glow-green-bright,
+  .glow-orange {
+    box-shadow: 0 10px 30px rgba(16, 24, 40, 0.12) !important;
+  }
+
+  /* Botanical corner branches: scale down + stop sway so they don't crowd */
+  .botanical-sway,
+  .botanical-sway-slow {
+    transform: scale(0.5);
+    animation: none !important;
+    opacity: 0.5;
+  }
+
+  /* Marquee a touch faster + smaller gaps read better on narrow screens */
+  .marquee { animation-duration: 24s; }
+}
+
+/* Phone-specific spacing + typography refinements */
+@media (max-width: 640px) {
+  .section-pad { padding-top: 3.25rem; padding-bottom: 3.25rem; }
+  .display-1 { font-size: clamp(2.25rem, 11vw, 3rem); line-height: 1.05; }
+  .display-2 { font-size: clamp(1.9rem, 9vw, 2.5rem); line-height: 1.08; }
+  .heading-fluid { font-size: clamp(1.6rem, 7.5vw, 2.1rem); line-height: 1.12; }
+  .subheading-fluid { font-size: 1rem; line-height: 1.55; }
+
+  /* Comfortable tap targets everywhere */
+  a, button { -webkit-tap-highlight-color: rgba(58, 125, 44, 0.12); }
+
+  /* Gold dividers shouldn't dominate small headers */
+  .gold-hairline { max-width: 96px !important; }
+}
+
+/* Smooth, momentum scrolling on iOS */
+@supports (-webkit-overflow-scrolling: touch) {
+  body { -webkit-overflow-scrolling: touch; }
+}

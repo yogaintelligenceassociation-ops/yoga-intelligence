@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CheckCircle, Award, Leaf, ArrowRight, Sparkles, Star, Heart, Flower2 } from "lucide-react";
 import { SOCIAL } from "../constants/social";
@@ -32,6 +32,17 @@ const marqueeItems = [
 export default function Hero({ onExploreClasses }) {
   const sectionRef = useRef(null);
 
+  // Scroll-linked fade/parallax is a desktop-only flourish. On phones the hero
+  // is tall and scrolls naturally, so fading it out while reading feels broken.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end start"],
@@ -46,7 +57,7 @@ export default function Hero({ onExploreClasses }) {
         id="home"
         ref={sectionRef}
         data-testid="home-hero"
-        className="relative min-h-screen flex flex-col hero-mesh overflow-hidden pt-16 md:pt-20"
+        className="relative lg:min-h-screen flex flex-col hero-mesh overflow-hidden pt-24 sm:pt-28 lg:pt-20"
       >
         {/* Aurora ambient mesh */}
         <div className="aurora" aria-hidden="true" />
@@ -63,8 +74,8 @@ export default function Hero({ onExploreClasses }) {
         />
 
         <motion.div
-          style={{ opacity, scale }}
-          className="container-yi flex-1 flex items-center py-12 md:py-16 relative z-10"
+          style={isDesktop ? { opacity, scale } : undefined}
+          className="container-yi flex-1 flex items-start lg:items-center py-8 lg:py-16 relative z-10"
         >
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center w-full">
             {/* LEFT — Text */}
@@ -200,7 +211,7 @@ export default function Hero({ onExploreClasses }) {
               />
 
               <Tilt max={7} scale={1.012} className="relative animated-border rounded-2xl md:rounded-3xl w-full max-w-sm lg:max-w-none">
-                <motion.div style={{ y: videoY }} className="relative" >
+                <motion.div style={isDesktop ? { y: videoY } : undefined} className="relative">
                   <HeroVideo />
                   {/* Gold corner brackets — royal cinematic frame */}
                   {["top-3 left-3 border-t-2 border-l-2 rounded-tl-lg", "top-3 right-3 border-t-2 border-r-2 rounded-tr-lg", "bottom-3 left-3 border-b-2 border-l-2 rounded-bl-lg", "bottom-3 right-3 border-b-2 border-r-2 rounded-br-lg"].map((pos, i) => (
@@ -212,9 +223,10 @@ export default function Hero({ onExploreClasses }) {
                   ))}
                 </motion.div>
 
-                {/* Certified badge (bottom-left float) */}
+                {/* Certified badge (bottom-left float) — desktop only; on phones it
+                    collided with the video controls, so it's hidden there. */}
                 <motion.div
-                  className="absolute -bottom-4 -left-4 glass rounded-2xl px-4 py-3 shadow-xl glow-green z-30"
+                  className="hidden lg:block absolute -bottom-4 -left-4 glass rounded-2xl px-4 py-3 shadow-xl glow-green z-30"
                   initial={{ x: -50, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 1, type: "spring" }}
@@ -231,9 +243,9 @@ export default function Hero({ onExploreClasses }) {
                   </div>
                 </motion.div>
 
-                {/* Stats float (top-right) */}
+                {/* Stats float (top-right) — desktop only */}
                 <motion.div
-                  className="absolute -top-4 -right-4 glass rounded-2xl px-4 py-3 shadow-xl glow-orange z-30"
+                  className="hidden lg:block absolute -top-4 -right-4 glass rounded-2xl px-4 py-3 shadow-xl glow-orange z-30"
                   initial={{ x: 50, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 1.2, type: "spring" }}
