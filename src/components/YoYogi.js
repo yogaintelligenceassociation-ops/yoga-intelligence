@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { MessageCircle, Sparkles, Leaf, Brain, HeartPulse, Sun } from "lucide-react";
 import RevealOnScroll from "./RevealOnScroll";
 import ChatWidget from "./ChatWidget";
-import { SOCIAL } from "../constants/social";
+import { waLink, waMessage } from "../constants/social";
 
 const promptPills = [
   "Which yoga helps with back pain?",
@@ -38,9 +38,9 @@ export default function YoYogi({ isAuthenticated, onLoginClick }) {
       <div className="container-yi relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           {/* LEFT */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 text-center lg:text-left">
             <RevealOnScroll>
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-[#3A7D2C]/10 text-[#3A7D2C] border border-[#3A7D2C]/20 w-fit">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-[#3A7D2C]/10 text-[#3A7D2C] border border-[#3A7D2C]/20 w-fit mx-auto lg:mx-0">
                 <Sparkles size={12} />
                 Your Personal Wellness AI
               </span>
@@ -105,7 +105,7 @@ export default function YoYogi({ isAuthenticated, onLoginClick }) {
             <RevealOnScroll delay={0.4}>
               <div className="flex flex-col gap-3">
                 <a
-                  href={SOCIAL.whatsapp}
+                  href={waLink(waMessage.general())}
                   target="_blank"
                   rel="noreferrer"
                   data-testid="yoyogi-whatsapp-link"

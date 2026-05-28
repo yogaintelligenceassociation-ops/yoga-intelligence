@@ -2,14 +2,37 @@
 // All brand-critical images live in /public/images/* so the site stays
 // fully functional even if any third-party CDN goes down.
 
+export const WHATSAPP_NUMBER = "917739588215";
+
 export const SOCIAL = {
   phone: "7739588215",
   email: "yogaintelligenceassociation@gmail.com",
-  whatsapp: "https://wa.me/917739588215",
+  whatsapp: `https://wa.me/${WHATSAPP_NUMBER}`,
   instagram: "https://www.instagram.com/yoga.intelligence?igsh=MW00cWU1aWo1bHY0cA==",
   youtube: "https://youtube.com/@yogaintelligenceassociation?si=DPWauvfekhar9Zus",
   facebook: "https://www.facebook.com/share/1G2D7UMSpJ/",
   googleReview: "https://g.page/r/CY3SeK9pCghQEAE/review",
+};
+
+// ── WhatsApp deep links with a pre-filled, professional message ─────────────
+// Clicking a "DM" button opens WhatsApp with a context-aware note so the user
+// (and we) know exactly what they're enquiring about — like a real product app.
+export function waLink(message = "") {
+  const base = `https://wa.me/${WHATSAPP_NUMBER}`;
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+}
+
+export const waMessage = {
+  general: () =>
+    "Namaste Yoga Intelligence 🙏\n\nI'd love to know more about your yoga programs and Ayurvedic products.\n\nPlease guide me. Thank you!",
+  program: (name) =>
+    `Namaste Yoga Intelligence 🙏\n\nI'm interested in the *${name}* program.\n\nCould you please share the details, schedule, and how I can begin?\n\nThank you!`,
+  pkg: (name) =>
+    `Namaste Yoga Intelligence 🙏\n\nI'd like to join the *${name}*.\n\nPlease share the pricing and the steps to enroll.\n\nThank you!`,
+  product: (name) =>
+    `Namaste Yoga Intelligence 🙏\n\nI'd like to order *${name}*.\n\nCould you please share the price and how to purchase?\n\nThank you!`,
+  article: (title) =>
+    `Namaste Yoga Intelligence 🙏\n\nI just read your guide "${title}" and would love a personalised programme based on it.\n\nPlease guide me. Thank you!`,
 };
 
 // Native brand colors used by the social icon row in Navbar + Footer.
@@ -40,7 +63,7 @@ export const IMAGES = {
   classes: {
     powerYoga: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=900&q=85&auto=format&fit=crop",
     acupressure: "https://images.unsplash.com/photo-1519824145371-296894a0daa9?w=900&q=85&auto=format&fit=crop",
-    backSpine: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=900&q=85&auto=format&fit=crop",
+    backSpine: "/images/classes/back-spine.jpg",
     stress: "https://images.unsplash.com/photo-1545389336-cf090694435e?w=900&q=85&auto=format&fit=crop",
     weightLoss: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=900&q=85&auto=format&fit=crop",
     beginner: "https://images.unsplash.com/photo-1593810450967-f9c42742e326?w=900&q=85&auto=format&fit=crop",

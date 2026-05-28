@@ -1,5 +1,5 @@
 import { Instagram, Youtube, Facebook, MessageCircle, Mail, Phone, Star } from "lucide-react";
-import { SOCIAL, BRAND_COLORS } from "../constants/social";
+import { SOCIAL, BRAND_COLORS, waLink, waMessage } from "../constants/social";
 import BrandLogo from "./BrandLogo";
 import { BotanicalCorners, GoldDivider } from "./ui/Botanical";
 
@@ -179,7 +179,7 @@ export default function Footer() {
             </ul>
 
             <a
-              href={SOCIAL.whatsapp}
+              href={waLink(waMessage.general())}
               target="_blank"
               rel="noreferrer"
               data-testid="footer-whatsapp-cta"

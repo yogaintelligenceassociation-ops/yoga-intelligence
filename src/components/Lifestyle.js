@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, Clock, X } from 'lucide-react';
 import RevealOnScroll from './RevealOnScroll';
-import { IMAGES, SOCIAL } from '../constants/social';
+import { IMAGES, waLink, waMessage } from '../constants/social';
 import { SectionHeading, Spotlight } from './ui/primitives';
 import {
   Dialog,
@@ -423,7 +423,7 @@ export default function Lifestyle() {
                     Want a personalised programme based on this guide?
                   </p>
                   <a
-                    href={SOCIAL.whatsapp}
+                    href={waLink(waMessage.article(active.title))}
                     target="_blank"
                     rel="noreferrer"
                     data-testid="blog-article-cta"

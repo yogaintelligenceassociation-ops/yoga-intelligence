@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { MessageCircle, AlertCircle } from 'lucide-react';
 import RevealOnScroll from './RevealOnScroll';
-import { SOCIAL, IMAGES } from '../constants/social';
+import { IMAGES, waLink, waMessage } from '../constants/social';
 import { SectionHeading, Spotlight } from './ui/primitives';
-
-const WA_LINK = SOCIAL.whatsapp;
 
 const products = [
   {
@@ -219,7 +217,7 @@ function ProductCard({ product, index }) {
 
           {/* CTA */}
           <a
-            href={WA_LINK}
+            href={waLink(waMessage.product(product.name))}
             target="_blank"
             rel="noreferrer"
             className="shine flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-r from-[#F07A1A] to-[#FF9438] text-white text-sm font-semibold hover:shadow-lg hover:shadow-orange-200 transition-all duration-200 font-poppins"

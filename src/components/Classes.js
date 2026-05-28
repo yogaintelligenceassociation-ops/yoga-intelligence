@@ -1,9 +1,7 @@
 import { Clock, MessageCircle, Check, Sparkles } from 'lucide-react';
 import RevealOnScroll from './RevealOnScroll';
-import { SOCIAL, IMAGES } from '../constants/social';
+import { IMAGES, waLink, waMessage } from '../constants/social';
 import { SectionHeading, Spotlight } from './ui/primitives';
-
-const WA_LINK = SOCIAL.whatsapp;
 
 // Curated class imagery - each matches its specific program
 const CLASS_D = IMAGES.classes.powerYoga;
@@ -149,7 +147,7 @@ function ClassCard({ cls, index }) {
               {cls.duration}
             </span>
             <a
-              href={WA_LINK}
+              href={waLink(waMessage.program(cls.title))}
               target="_blank"
               rel="noreferrer"
               className="shine inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#F07A1A] text-[#F07A1A] text-xs font-semibold hover:bg-[#F07A1A] hover:text-white transition-colors duration-200 font-poppins"
@@ -206,7 +204,7 @@ function PackageCard({ pkg, index }) {
       </ul>
 
       <a
-        href={WA_LINK}
+        href={waLink(waMessage.pkg(pkg.title))}
         target="_blank"
         rel="noreferrer"
         className={`shine w-full py-3.5 rounded-xl font-semibold text-sm text-center transition-all duration-200 font-poppins block ${

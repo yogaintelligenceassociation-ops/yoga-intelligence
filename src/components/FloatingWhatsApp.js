@@ -1,11 +1,11 @@
 import { MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { SOCIAL } from '../constants/social';
+import { waLink, waMessage } from '../constants/social';
 
 export default function FloatingWhatsApp() {
   return (
     <motion.a
-      href={SOCIAL.whatsapp}
+      href={waLink(waMessage.general())}
       target="_blank"
       rel="noreferrer"
       className="floating-wa"

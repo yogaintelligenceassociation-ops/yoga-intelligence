@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CheckCircle, Award, Leaf, ArrowRight, Sparkles, Star, Heart, Flower2 } from "lucide-react";
-import { SOCIAL } from "../constants/social";
+import { waLink, waMessage } from "../constants/social";
 import HeroVideo from "./HeroVideo";
 import { StatCounter, Tilt, KineticText } from "./ui/primitives";
 import { LeafParticles } from "./ui/Botanical";
@@ -118,7 +118,7 @@ export default function Hero({ onExploreClasses }) {
                 className="flex flex-col sm:flex-row gap-3 md:gap-4 px-4 lg:px-0"
               >
                 <a
-                  href={SOCIAL.whatsapp}
+                  href={waLink(waMessage.general())}
                   target="_blank"
                   rel="noreferrer"
                   data-testid="hero-whatsapp-cta"
