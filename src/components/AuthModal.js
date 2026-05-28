@@ -10,6 +10,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otpToken, setOtpToken] = useState("");
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -24,6 +25,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         setName("");
         setPhone("");
         setOtp(["", "", "", "", "", ""]);
+        setOtpToken("");
         setCountdown(0);
         setLoading(false);
         setError("");
@@ -45,6 +47,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
     try {
       const data = await api.sendOtp(phone);
+      setOtpToken(data.otp_token || "");
 
       if (data.dev_otp) {
         // Development convenience — never present in production responses.
@@ -105,7 +108,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setError("");
 
     try {
-      const data = await api.verifyOtp(phone, otpString, name.trim());
+      const data = await api.verifyOtp(phone, otpString, otpToken, name.trim());
       setStep(3);
       toast.success("Welcome to Yoga Intelligence");
       setTimeout(() => onAuthSuccess(phone, data.token, data.name || name.trim()), 1100);

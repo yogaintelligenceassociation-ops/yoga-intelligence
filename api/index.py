@@ -7,6 +7,8 @@ All endpoints live under /api/* so the same routing works locally and on Vercel.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 import re
 import secrets
@@ -25,13 +27,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
-from pymongo import ASCENDING, MongoClient
 
 load_dotenv()
 
 # ─── Config ─────────────────────────────────────────────────────────────────
-MONGO_URL = os.environ.get("MONGO_URL", "").strip()
-DB_NAME = os.environ.get("DB_NAME", "yoga_intelligence")
+# No database. The app is fully stateless:
+#   • OTP is verified via a short-lived SIGNED token (no storage)
+#   • the login session is a JWT held in the browser
+#   • new sign-ups (name + phone) are sent only to a Google Sheet
+#   • YoYogi chats are ephemeral and never stored
 FAST2SMS_API_KEY = os.environ.get("FAST2SMS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 # Optional: Google Apps Script Web App URL that appends {name, phone} to a Sheet.
@@ -81,47 +85,14 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
-# ─── Database (lazy, single client per warm invocation) ─────────────────────
-_mongo_client: Optional[MongoClient] = None
-
-
-def get_db():
-    global _mongo_client
-    if not MONGO_URL:
-        raise HTTPException(status_code=503, detail="Database not configured")
-    if _mongo_client is None:
-        # Serverless-friendly pooling: each warm Lambda keeps a small bounded pool
-        # and reuses it across invocations, so many concurrent users don't exhaust
-        # Atlas connections. Idle connections are reaped quickly.
-        _mongo_client = MongoClient(
-            MONGO_URL,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
-            socketTimeoutMS=10000,
-            maxPoolSize=10,
-            minPoolSize=0,
-            maxIdleTimeMS=30000,
-            retryWrites=True,
-        )
-        try:
-            db = _mongo_client[DB_NAME]
-            # OTPs auto-expire (TTL); users indexed for fast lookups at scale.
-            # (Chats are ephemeral and never stored, so there is no chat index.)
-            db["otps"].create_index([("created_at", ASCENDING)], expireAfterSeconds=(OTP_EXPIRE_MINS + 1) * 60)
-            db["otps"].create_index([("phone", ASCENDING)])
-            db["users"].create_index([("phone", ASCENDING)], unique=True)
-        except Exception:
-            pass
-    return _mongo_client[DB_NAME]
-
-
 # ─── Auth helpers ───────────────────────────────────────────────────────────
 bearer = HTTPBearer(auto_error=False)
 
 
-def make_jwt(phone: str) -> str:
+def make_jwt(phone: str, name: str = "") -> str:
     payload = {
         "sub": phone,
+        "name": name,
         "iat": datetime.now(timezone.utc),
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS),
     }
@@ -135,6 +106,38 @@ def verify_jwt(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Session expired. Please login again.")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# ─── Stateless OTP (no database) ─────────────────────────────────────────────
+# send-otp hashes the code into a short-lived signed token and returns it to the
+# client; verify-otp checks the user's entered code against that token. The plain
+# OTP is never stored anywhere — only its salted hash inside a signed, expiring JWT.
+def _otp_hash(phone: str, otp: str) -> str:
+    return hmac.new(JWT_SECRET.encode(), f"{phone}:{otp}".encode(), hashlib.sha256).hexdigest()
+
+
+def make_otp_token(phone: str, otp: str) -> str:
+    payload = {
+        "purpose": "otp",
+        "phone": phone,
+        "h": _otp_hash(phone, otp),
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+
+
+def verify_otp_token(token: str, phone: str, otp: str) -> None:
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="OTP expired. Please request a new one.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid OTP session. Please request a new one.")
+    if payload.get("purpose") != "otp" or payload.get("phone") != phone:
+        raise HTTPException(status_code=400, detail="Invalid OTP session. Please request a new one.")
+    if not hmac.compare_digest(payload.get("h", ""), _otp_hash(phone, otp)):
+        raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
 
 
 def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
@@ -261,6 +264,7 @@ class SendOTPRequest(BaseModel):
 class VerifyOTPRequest(BaseModel):
     phone: str = Field(..., min_length=10, max_length=15)
     otp: str = Field(..., min_length=6, max_length=6)
+    otp_token: str = Field(..., min_length=10, max_length=2000)
     name: str = Field("", max_length=80)
 
     @field_validator("phone")
@@ -308,20 +312,8 @@ async def send_otp(body: SendOTPRequest, request: Request):
     rate_limit(f"otp:phone:{body.phone}", limit=3, window_seconds=300)
 
     otp_code = str(secrets.randbelow(1_000_000)).zfill(6)
-    db = get_db()
-    db["otps"].update_one(
-        {"phone": body.phone},
-        {
-            "$set": {
-                "phone": body.phone,
-                "otp": otp_code,
-                "created_at": datetime.now(timezone.utc),
-                "attempts": 0,
-                "verified": False,
-            }
-        },
-        upsert=True,
-    )
+    # Stateless: the code lives only inside this signed, 5-minute token.
+    otp_token = make_otp_token(body.phone, otp_code)
 
     sms_result = await send_sms_fast2sms(body.phone, otp_code)
 
@@ -329,6 +321,7 @@ async def send_otp(body: SendOTPRequest, request: Request):
         "success": True,
         "message": f"OTP sent to +91 {body.phone}",
         "sms_sent": sms_result.get("sent", False),
+        "otp_token": otp_token,
     }
 
     # Only echo the OTP back in development; never in production.
@@ -342,59 +335,23 @@ async def send_otp(body: SendOTPRequest, request: Request):
 @app.post("/api/auth/verify-otp")
 async def verify_otp(body: VerifyOTPRequest, request: Request):
     client_ip = request.client.host if request.client else "unknown"
+    # Best-effort brute-force protection (no DB): cap verify attempts per IP/phone.
     rate_limit(f"verify:{client_ip}", limit=10, window_seconds=60)
+    rate_limit(f"verify:phone:{body.phone}", limit=6, window_seconds=300)
 
-    db = get_db()
-    record = db["otps"].find_one({"phone": body.phone, "verified": False})
-    if not record:
-        raise HTTPException(status_code=400, detail="OTP not found or already used. Request a new one.")
+    # Validates the signed OTP token + entered code; raises on expiry/mismatch.
+    verify_otp_token(body.otp_token, body.phone, body.otp)
 
-    created = record["created_at"]
-    if created.tzinfo is None:
-        created = created.replace(tzinfo=timezone.utc)
-    if datetime.now(timezone.utc) - created > timedelta(minutes=OTP_EXPIRE_MINS):
-        db["otps"].delete_one({"phone": body.phone})
-        raise HTTPException(status_code=400, detail="OTP expired. Please request a new one.")
+    name = body.name or ""
 
-    if record.get("attempts", 0) >= 3:
-        db["otps"].delete_one({"phone": body.phone})
-        raise HTTPException(status_code=429, detail="Too many wrong attempts. Request a new OTP.")
-
-    if record["otp"] != body.otp:
-        db["otps"].update_one({"phone": body.phone}, {"$inc": {"attempts": 1}})
-        remaining = max(0, 3 - (record.get("attempts", 0) + 1))
-        raise HTTPException(status_code=400, detail=f"Incorrect OTP. {remaining} attempts remaining.")
-
-    db["otps"].update_one({"phone": body.phone}, {"$set": {"verified": True}})
-
-    # Determine if this is a brand-new user (so we only log new sign-ups to the Sheet).
-    existing = db["users"].find_one({"phone": body.phone})
-    is_new_user = existing is None
-    name = body.name or (existing.get("name") if existing else "") or ""
-
-    set_fields = {"phone": body.phone, "last_login": datetime.now(timezone.utc)}
-    if body.name:
-        set_fields["name"] = body.name
-    db["users"].update_one(
-        {"phone": body.phone},
-        {
-            "$set": set_fields,
-            "$setOnInsert": {
-                "created_at": datetime.now(timezone.utc),
-                "user_id": str(uuid.uuid4()),
-            },
-        },
-        upsert=True,
-    )
-
-    # Append name + number to the Google Sheet for new sign-ups (best-effort).
-    if is_new_user:
-        await log_to_sheet(name, body.phone)
+    # Record the sign-up (name + phone) to the Google Sheet only. Best-effort —
+    # never blocks login. This is the only place the name/number is persisted.
+    await log_to_sheet(name, body.phone)
 
     return {
         "success": True,
         "message": "Login successful. Welcome to Yoga Intelligence.",
-        "token": make_jwt(body.phone),
+        "token": make_jwt(body.phone, name),
         "phone": body.phone,
         "name": name,
     }
@@ -402,16 +359,11 @@ async def verify_otp(body: VerifyOTPRequest, request: Request):
 
 @app.get("/api/auth/me")
 async def get_me(user=Depends(get_current_user)):
-    phone = user["sub"]
-    try:
-        record = get_db()["users"].find_one({"phone": phone}, {"_id": 0})
-    except HTTPException:
-        record = None
+    # Stateless: everything we know about the session lives in the JWT itself.
     return {
-        "phone": phone,
-        "name": (record.get("name") if record else "") or "",
-        "member": bool(record),
-        "joined": str(record.get("created_at")) if record else None,
+        "phone": user.get("sub", ""),
+        "name": user.get("name", "") or "",
+        "member": True,
     }
 
 

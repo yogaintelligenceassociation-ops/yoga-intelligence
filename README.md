@@ -1,14 +1,14 @@
 # Yoga Intelligence
 
-> Premium Indian wellness brand site for **Yoga Intelligence**, founded and guided by **Yogacharya Mrityunjay Pandey**. Single-page experience featuring the **YoYogi** AI wellness companion (powered by Google Gemini 2.5 Flash).
+> Premium Indian wellness brand site for **Yoga Intelligence**, founded and guided by **Yogacharya Mrityunjay Pandey**. Single-page experience featuring the **YoYogi** AI wellness companion.
 
 ## What's inside
 
 - **Frontend** — React 19 + Create React App (Craco) + Tailwind + shadcn/ui + Framer Motion. Cinematic hero video, premium card system, mobile-first layout.
 - **Backend** — Python FastAPI deployed as a **Vercel serverless function** at `/api/*`. Endpoints for OTP auth, JWT issuance, and the YoYogi chat.
-- **Data** — MongoDB (Atlas in production). Stores OTPs (auto-expiring), users, and chat history.
-- **Auth** — Phone-number OTP via **Fast2SMS**, JWT for session.
-- **AI** — **Google Gemini 2.5 Flash** with a strict refusal prompt that confines YoYogi to yoga, Ayurveda, health, and wellness topics.
+- **No database** — fully stateless: OTP is a short-lived signed token, the session is a JWT, sign-ups (name + phone) go to a Google Sheet, and chats are ephemeral (never stored).
+- **Auth** — Phone-number OTP via **Fast2SMS**, long-lived JWT for a persistent session.
+- **AI** — YoYogi, with a strict refusal prompt that confines it to yoga, Ayurveda, health, and wellness topics.
 
 ## Project layout
 
@@ -41,7 +41,7 @@
 ### Prerequisites
 - **Node.js 18+** (npm)
 - **Python 3.11+**
-- **MongoDB** — either local (`mongodb://localhost:27017`) or a free Atlas cluster
+- *(No database to install — the backend is stateless.)*
 
 ### One-time setup
 
@@ -63,12 +63,10 @@ copy .env.example .env          # cp on macOS/Linux
 
 | Variable | Purpose | Required |
 | --- | --- | --- |
-| `MONGO_URL` | MongoDB connection string | Yes |
-| `DB_NAME` | Database name (default: `yoga_intelligence`) | No |
 | `GEMINI_API_KEY` | Google AI Studio key for YoYogi | Yes (chat) |
-| `JWT_SECRET_KEY` | Random secret for signing JWTs (`openssl rand -hex 64`) | Yes in prod |
+| `JWT_SECRET_KEY` | Random secret for signing JWTs + OTP tokens (`openssl rand -hex 64`) | Yes in prod |
 | `FAST2SMS_API_KEY` | SMS provider for OTP delivery | Optional — leave blank for dev (the API will return `dev_otp` in the response) |
-| `GOOGLE_SHEET_WEBHOOK_URL` | Apps Script Web App URL that logs new sign-ups (name + phone) to a Google Sheet | Optional |
+| `GOOGLE_SHEET_WEBHOOK_URL` | Apps Script Web App URL that logs sign-ups (name + phone) to a Google Sheet | Optional |
 | `CORS_ORIGINS` | Comma-separated allow-list (`*` in dev) | No |
 
 ### Logging sign-ups to a Google Sheet (optional, ~2 minutes)
@@ -108,11 +106,12 @@ The frontend dev server proxies `/api/*` to `http://localhost:8000`, so the same
 ## Deploying to GitHub + Vercel
 
 ### One-time prerequisites
-- A free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) cluster (M0 tier is enough)
-- A [Google AI Studio](https://aistudio.google.com/apikey) API key (Gemini 2.5 Flash is on the free tier)
+- A [Google AI Studio](https://aistudio.google.com/apikey) API key (free tier works)
 - A [Fast2SMS](https://www.fast2sms.com/) account + API key (for production OTP delivery)
+- (Optional) A Google Sheet + Apps Script webhook for sign-up logging
 - A GitHub account
 - A free Vercel account, signed in with GitHub
+- *(No database — nothing to provision.)*
 
 ### Step 1 — push to GitHub
 
@@ -135,11 +134,10 @@ git push -u origin main
 2. **Import** your GitHub repo.
 3. Vercel auto-detects: Framework = *Create React App*, Output = `build`, Python serverless at `/api`.
 4. Under **Environment Variables**, add (from `.env.example`):
-   - `MONGO_URL` — your Atlas connection string
-   - `DB_NAME` — `yoga_intelligence`
    - `GEMINI_API_KEY` — your Gemini key
    - `JWT_SECRET_KEY` — a long random string (`openssl rand -hex 64`)
    - `FAST2SMS_API_KEY` — your Fast2SMS key
+   - `GOOGLE_SHEET_WEBHOOK_URL` — your Apps Script `/exec` URL (optional)
    - `CORS_ORIGINS` — your final domain, e.g. `https://yogaintelligence.in`
 5. **Deploy.** The first build takes 2–3 minutes. You'll get a `*.vercel.app` URL.
 
