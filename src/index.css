@@ -37,8 +37,12 @@
 
   html {
     scroll-behavior: smooth;
-    /* Offset anchor jumps so sections clear the fixed navbar */
+    /* Offset anchor / scrollIntoView jumps so sections clear the fixed navbar */
     scroll-padding-top: 6rem;
+    /* Clip horizontal overflow HERE (on the scroll root) — putting it on <body>
+       turns body into the scroll container and breaks window scrolling + the
+       menu navigation. Keeping it on <html> preserves normal window scrolling. */
+    overflow-x: hidden;
     -webkit-tap-highlight-color: rgba(58, 125, 44, 0.1);
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
@@ -52,8 +56,10 @@
     font-feature-settings: "cv11", "ss01";
     font-size: 16px;
     line-height: 1.6;
-    overflow-x: hidden;
   }
+
+  /* Sections clear the fixed navbar when navigated to via scrollIntoView */
+  section[id] { scroll-margin-top: 5.5rem; }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;

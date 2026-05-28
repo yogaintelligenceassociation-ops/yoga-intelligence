@@ -39,19 +39,22 @@ export default function Navbar({ isAuthenticated, authPhone, authName, onLoginCl
   // scroll-padding, which some mobile browsers ignore with smooth scrolling).
   const goToSection = (e, href) => {
     if (e) e.preventDefault();
-    setMobileMenuOpen(false);
     const id = href.replace("#", "");
-    const el = document.getElementById(id);
-    if (!el) return;
-    const nav = document.querySelector('[data-testid="navbar"]');
-    const navH = nav ? nav.offsetHeight : 80;
-    if (id === "home") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else {
+    setMobileMenuOpen(false);
+    const navH = window.matchMedia("(min-width: 768px)").matches ? 96 : 80;
+    // Wait a frame so the mobile menu starts collapsing, then scroll the window
+    // (window scrolling now works because overflow-x:hidden lives on <html>, not
+    // <body>). scrollIntoView is used as a fallback if the element math fails.
+    requestAnimationFrame(() => {
+      if (id === "home") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      const el = document.getElementById(id);
+      if (!el) return;
       const y = el.getBoundingClientRect().top + window.scrollY - navH - 12;
       window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
-    }
-    // Reflect the section in the URL without a jump.
+    });
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, "", href);
     }
