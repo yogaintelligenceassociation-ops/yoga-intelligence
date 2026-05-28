@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogOut, User, Instagram, Youtube, Facebook, MessageCircle, Star } from "lucide-react";
-import { SOCIAL, BRAND_COLORS } from "../constants/social";
+import { SOCIAL, BRAND_COLORS, waLink, waMessage } from "../constants/social";
 import BrandLogo from "./BrandLogo";
 
 const socialIcons = [
@@ -9,7 +9,7 @@ const socialIcons = [
   { Icon: Youtube, href: SOCIAL.youtube, color: BRAND_COLORS.youtube, label: "YouTube" },
   { Icon: Facebook, href: SOCIAL.facebook, color: BRAND_COLORS.facebook, label: "Facebook" },
   { Icon: Star, href: SOCIAL.googleReview, color: BRAND_COLORS.googleReview, label: "Google Review" },
-  { Icon: MessageCircle, href: SOCIAL.whatsapp, color: BRAND_COLORS.whatsapp, label: "WhatsApp" },
+  { Icon: MessageCircle, href: waLink(waMessage.general()), color: BRAND_COLORS.whatsapp, label: "WhatsApp" },
 ];
 
 const navLinks = [

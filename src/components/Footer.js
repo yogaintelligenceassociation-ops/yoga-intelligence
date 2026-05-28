@@ -9,7 +9,7 @@ const quickLinks = [
   { label: "Products", href: "#products" },
   { label: "Lifestyle", href: "#lifestyle" },
   { label: "YoYogi AI", href: "#yoyogi" },
-  { label: "Contact", href: SOCIAL.whatsapp, external: true },
+  { label: "Contact", href: waLink(waMessage.general()), external: true },
 ];
 
 const programs = [
@@ -26,7 +26,7 @@ const socialIcons = [
   { Icon: Youtube, href: SOCIAL.youtube, color: BRAND_COLORS.youtube, label: "YouTube" },
   { Icon: Facebook, href: SOCIAL.facebook, color: BRAND_COLORS.facebook, label: "Facebook" },
   { Icon: Star, href: SOCIAL.googleReview, color: BRAND_COLORS.googleReview, label: "Google Review" },
-  { Icon: MessageCircle, href: SOCIAL.whatsapp, color: BRAND_COLORS.whatsapp, label: "WhatsApp" },
+  { Icon: MessageCircle, href: waLink(waMessage.general()), color: BRAND_COLORS.whatsapp, label: "WhatsApp" },
 ];
 
 export default function Footer() {
@@ -148,7 +148,7 @@ export default function Footer() {
               <li className="flex items-start gap-3">
                 <Phone size={15} style={{ color: BRAND_COLORS.whatsapp }} className="flex-shrink-0 mt-0.5" />
                 <a
-                  href={SOCIAL.whatsapp}
+                  href={waLink(waMessage.general())}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm text-gray-400 hover:text-white transition-colors"

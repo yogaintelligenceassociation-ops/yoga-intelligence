@@ -22,17 +22,20 @@ export function waLink(message = "") {
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
 
+// Warm, professional, ready-to-send messages. The user just taps "send" and
+// Yogacharya Mrityunjay Pandey's team coordinates from there. WhatsApp renders
+// *text* as bold and \n as line breaks.
 export const waMessage = {
   general: () =>
-    "Namaste Yoga Intelligence 🙏\n\nI'd love to know more about your yoga programs and Ayurvedic products.\n\nPlease guide me. Thank you!",
+    "Namaste Yoga Intelligence 🙏\n\nI visited your website and I'd love to learn more about your yoga programs and Ayurvedic products.\n\nKindly guide me on how to begin. Thank you! 🌿",
   program: (name) =>
-    `Namaste Yoga Intelligence 🙏\n\nI'm interested in the *${name}* program.\n\nCould you please share the details, schedule, and how I can begin?\n\nThank you!`,
+    `Namaste Yoga Intelligence 🙏\n\nI'm interested in the *${name}* and would love to begin my wellness journey under the guidance of Yogacharya Mrityunjay Pandey.\n\nCould you please share the details, schedule, and how I can get started?\n\nLooking forward to your reply. Thank you! 🌿`,
   pkg: (name) =>
-    `Namaste Yoga Intelligence 🙏\n\nI'd like to join the *${name}*.\n\nPlease share the pricing and the steps to enroll.\n\nThank you!`,
+    `Namaste Yoga Intelligence 🙏\n\nI'd like to enrol in the *${name}* and start my transformation with Yoga Intelligence.\n\nCould you please share the pricing and the next steps to join?\n\nThank you! 🌿`,
   product: (name) =>
-    `Namaste Yoga Intelligence 🙏\n\nI'd like to order *${name}*.\n\nCould you please share the price and how to purchase?\n\nThank you!`,
+    `Namaste Yoga Intelligence 🙏\n\nI'd like to order *${name}* from your Ayurvedic store.\n\nCould you please share the price, availability, and how I can purchase it?\n\nThank you! 🌿`,
   article: (title) =>
-    `Namaste Yoga Intelligence 🙏\n\nI just read your guide "${title}" and would love a personalised programme based on it.\n\nPlease guide me. Thank you!`,
+    `Namaste Yoga Intelligence 🙏\n\nI just read your guide "*${title}*" and found it truly helpful.\n\nI'd love a personalised programme based on it — could you please guide me?\n\nThank you! 🌿`,
 };
 
 // Native brand colors used by the social icon row in Navbar + Footer.
