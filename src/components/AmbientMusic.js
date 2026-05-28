@@ -64,12 +64,13 @@ export default function AmbientMusic() {
     if (!audio) return;
     const onOk = () => setAvailable(true);
     const onErr = () => setAvailable(false);
-    audio.addEventListener("canplaythrough", onOk);
-    audio.addEventListener("loadeddata", onOk);
+    // metadata is enough to know the track exists → show the toggle early.
+    audio.addEventListener("loadedmetadata", onOk);
+    audio.addEventListener("canplay", onOk);
     audio.addEventListener("error", onErr);
     return () => {
-      audio.removeEventListener("canplaythrough", onOk);
-      audio.removeEventListener("loadeddata", onOk);
+      audio.removeEventListener("loadedmetadata", onOk);
+      audio.removeEventListener("canplay", onOk);
       audio.removeEventListener("error", onErr);
     };
   }, []);
@@ -124,8 +125,9 @@ export default function AmbientMusic() {
 
   return (
     <>
-      {/* Loop the track; preload so we can detect availability. */}
-      <audio ref={audioRef} src="/audio/ambient.mp3" loop preload="auto" />
+      {/* Loop the track; preload metadata only (keeps page load light, the
+          audio then streams on play). */}
+      <audio ref={audioRef} src="/audio/ambient.mp3" loop preload="metadata" />
 
       <AnimatePresence>
         {available && (
