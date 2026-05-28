@@ -13,6 +13,7 @@ import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
 import ScrollProgress from "./components/ScrollProgress";
 import FloatingWhatsApp from "./components/FloatingWhatsApp";
+import AmbientMusic from "./components/AmbientMusic";
 
 const scrollTo = (id) =>
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -34,6 +35,7 @@ export default function App() {
       <Toaster position="top-center" richColors closeButton />
       <ScrollProgress />
       <FloatingWhatsApp />
+      <AmbientMusic />
       <Navbar
         isAuthenticated={isAuthenticated}
         authPhone={authPhone}

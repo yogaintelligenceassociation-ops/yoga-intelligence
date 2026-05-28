@@ -34,6 +34,29 @@ export default function Navbar({ isAuthenticated, authPhone, authName, onLoginCl
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Robust in-page navigation: scroll to a section accounting for the fixed
+  // navbar height. Works reliably across browsers (doesn't rely on CSS
+  // scroll-padding, which some mobile browsers ignore with smooth scrolling).
+  const goToSection = (e, href) => {
+    if (e) e.preventDefault();
+    setMobileMenuOpen(false);
+    const id = href.replace("#", "");
+    const el = document.getElementById(id);
+    if (!el) return;
+    const nav = document.querySelector('[data-testid="navbar"]');
+    const navH = nav ? nav.offsetHeight : 80;
+    if (id === "home") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      const y = el.getBoundingClientRect().top + window.scrollY - navH - 12;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    }
+    // Reflect the section in the URL without a jump.
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", href);
+    }
+  };
+
   // Scroll-spy — highlight the nav link for the section currently in view.
   useEffect(() => {
     const ids = navLinks.map((l) => l.href.replace("#", ""));
@@ -69,6 +92,7 @@ export default function Navbar({ isAuthenticated, authPhone, authName, onLoginCl
           {/* LEFT — Round logo + orange brand wordmark */}
           <motion.a
             href="#home"
+            onClick={(e) => goToSection(e, "#home")}
             className="flex items-center gap-3 group flex-shrink-0 min-w-0"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -93,6 +117,7 @@ export default function Navbar({ isAuthenticated, authPhone, authName, onLoginCl
                 <a
                   key={link.name}
                   href={link.href}
+                  onClick={(e) => goToSection(e, link.href)}
                   aria-current={isActive ? "page" : undefined}
                   className={`relative px-4 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 font-poppins ${
                     isActive ? "text-[#3A7D2C]" : "text-[#1A1A1A] hover:text-[#3A7D2C]"
@@ -186,7 +211,7 @@ export default function Navbar({ isAuthenticated, authPhone, authName, onLoginCl
                 <a
                   key={link.name}
                   href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={(e) => goToSection(e, link.href)}
                   className="block px-4 py-3 rounded-xl text-base font-semibold text-[#1A1A1A] hover:text-[#3A7D2C] hover:bg-[#3A7D2C]/5 transition-colors duration-200 font-poppins"
                 >
                   {link.name}

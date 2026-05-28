@@ -1,22 +1,20 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Volume2, VolumeX } from "lucide-react";
 import { IMAGES } from "../constants/social";
 
 /**
- * HeroVideo — autoplay-only cinematic player.
+ * HeroVideo — silent, autoplay-only cinematic player.
  *
- * The video always autoplays and loops; it cannot be paused or stopped by the
- * user. The ONLY control is mute / unmute. (It pauses automatically when fully
- * off-screen purely to save battery, and resumes the moment it's visible again.)
+ * The video always autoplays muted and loops; it has no sound and no controls.
+ * (Soulful background music plays site-wide instead — see AmbientMusic.)
+ * It pauses automatically when fully off-screen to save battery, and resumes
+ * the moment it's visible again.
  */
 export default function HeroVideo() {
-  const wrapperRef = useRef(null);
   const videoRef = useRef(null);
 
   const [isMobile, setIsMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -71,17 +69,8 @@ export default function HeroVideo() {
     };
   }, []);
 
-  const toggleMute = useCallback((e) => {
-    e?.stopPropagation();
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = !v.muted;
-    setIsMuted(v.muted);
-  }, []);
-
   return (
     <div
-      ref={wrapperRef}
       data-testid="hero-video-frame"
       className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-[0_30px_80px_rgba(15,34,18,0.35)] bg-[#0F2212] ring-1 ring-white/10"
     >
@@ -92,7 +81,7 @@ export default function HeroVideo() {
         </div>
       )}
 
-      {/* The video — autoplay, loop, muted; subtle cinematic colour grade */}
+      {/* The video — autoplay, loop, MUTED (no sound, no controls); cinematic grade */}
       <motion.video
         ref={videoRef}
         data-testid="hero-video"
@@ -137,29 +126,6 @@ export default function HeroVideo() {
       <div className="absolute top-4 right-4 z-20 px-2.5 py-1 rounded-md bg-black/45 backdrop-blur-sm text-white text-[10px] font-bold tracking-wider pointer-events-none">
         HD
       </div>
-
-      {/* The ONLY control: mute / unmute */}
-      <button
-        onClick={toggleMute}
-        data-testid="hero-video-mute-toggle"
-        aria-label={isMuted ? "Unmute video" : "Mute video"}
-        className={`absolute bottom-4 right-4 z-20 flex items-center gap-1.5 px-3 h-10 rounded-full text-white hover:scale-105 active:scale-95 transition-transform duration-200 shadow-lg font-semibold text-[11px] uppercase tracking-wider ring-1 ring-white/20 ${
-          isMuted ? "bg-[#F07A1A]" : ""
-        }`}
-        style={
-          isMuted
-            ? { boxShadow: "0 8px 24px rgba(240,122,26,0.5)" }
-            : { background: "rgba(15,34,18,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }
-        }
-      >
-        {isMuted ? (
-          <>
-            <VolumeX size={14} /> Tap for sound
-          </>
-        ) : (
-          <Volume2 size={14} />
-        )}
-      </button>
 
       {/* Non-interactive progress line (visual polish only) */}
       <div className="absolute bottom-0 inset-x-0 h-1 bg-white/10 z-10 pointer-events-none">
