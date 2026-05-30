@@ -4,6 +4,11 @@ import { Quote, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import RevealOnScroll from "./RevealOnScroll";
 import { GoldDivider, BotanicalCorners } from "./ui/Botanical";
 
+// Avatar: DiceBear "avataaars-neutral" — free, no-attribution illustrated faces.
+// Each seed is the person's name so the face stays consistent across re-renders.
+const avatar = (seed) =>
+  `https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&backgroundType=gradientLinear&radius=50`;
+
 // ── Authentic student experiences ─────────────────────────────────────────
 const testimonials = [
   {
@@ -14,6 +19,7 @@ const testimonials = [
     rating: 5,
     initials: "PS",
     color: "#F07A1A",
+    avatar: avatar("PriyaSharmaYI"),
     quote:
       "I had been suffering from chronic lower-back pain for three years. Painkillers were my daily routine. After just six weeks under Yogacharya Mrityunjay Pandey's guidance, I am medication-free. The postures were gentle yet deeply healing. This program changed my life.",
   },
@@ -25,6 +31,7 @@ const testimonials = [
     rating: 5,
     initials: "RV",
     color: "#3A7D2C",
+    avatar: avatar("RahulVermaYI"),
     quote:
       "I had tried gym, zumba, everything — but the weight wouldn't shift. In eight weeks of Power Yoga with Yoga Intelligence, I lost 11 kg. More importantly, I feel energetic and calm in a way I never did with any other exercise. Truly a transformation.",
   },
@@ -36,28 +43,31 @@ const testimonials = [
     rating: 5,
     initials: "SA",
     color: "#F5C118",
+    avatar: avatar("SunitaAgarwalYI"),
     quote:
       "Anxiety had taken over my life. After this four-week programme and the pranayama techniques Mrityunjay ji taught me, I sleep deeply for the first time in years. The YI Ashwagandha churna also made a visible difference. I recommend it to every working professional.",
   },
   {
     id: 4,
     name: "Deepak Mishra",
-    location: "Lucknow",
+    location: "Guwahati, Assam",
     program: "Acupressure Therapy Yoga",
     rating: 5,
     initials: "DM",
     color: "#3A7D2C",
+    avatar: avatar("DeepakMishraYI"),
     quote:
       "I was sceptical about acupressure. Within two weeks I felt my digestion improve and a lightness in my joints that I hadn't felt in years. Yogacharya ji explains everything so clearly and is always available on WhatsApp. This is truly personalised care.",
   },
   {
     id: 5,
-    name: "Anjali Tiwari",
-    location: "Bhopal",
+    name: "Anjali Bora",
+    location: "Guwahati, Assam",
     program: "Beginner's Foundation Course",
     rating: 5,
-    initials: "AT",
+    initials: "AB",
     color: "#F07A1A",
+    avatar: avatar("AnjaliBora_Guwahati_YI"),
     quote:
       "I had zero flexibility and thought yoga was not for me. The Beginner's Course was so well structured that within a month I was doing postures I never imagined. Mrityunjay sir's patience and encouragement is what makes Yoga Intelligence different from any app or video.",
   },
@@ -69,6 +79,7 @@ const testimonials = [
     rating: 5,
     initials: "MG",
     color: "#F5C118",
+    avatar: avatar("ManishGuptaYI"),
     quote:
       "The YI Triphala Churna and Sitopaladi have become part of my daily routine. My immunity has visibly improved this season — I didn't catch the flu once. These products are pure, effective, and priced honestly. Pure Ayurveda, no fillers.",
   },
@@ -132,11 +143,31 @@ function TestimonialCard({ t, featured = false }) {
 
         {/* author row */}
         <div className="flex items-center gap-3">
+          {/* Profile avatar — illustrated (DiceBear) with coloured ring + initials fallback */}
           <div
-            className="w-11 h-11 rounded-full flex items-center justify-center text-white font-poppins font-bold text-sm flex-shrink-0 shadow-lg"
-            style={{ background: `linear-gradient(135deg, ${t.color}CC, ${t.color}66)` }}
+            className="w-12 h-12 rounded-full flex-shrink-0 overflow-hidden shadow-lg ring-2"
+            style={{ ringColor: t.color, boxShadow: `0 0 0 2px ${t.color}`, background: `${t.color}30` }}
           >
-            {t.initials}
+            {t.avatar ? (
+              <img
+                src={t.avatar}
+                alt={t.name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  // If the CDN fails, fall back to initials gracefully
+                  e.target.style.display = "none";
+                  e.target.parentElement.setAttribute("data-fallback", "true");
+                }}
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-white font-poppins font-bold text-sm"
+                style={{ background: `linear-gradient(135deg, ${t.color}CC, ${t.color}66)` }}
+              >
+                {t.initials}
+              </div>
+            )}
           </div>
           <div className="min-w-0">
             <div className="font-poppins font-bold text-white text-sm truncate">
