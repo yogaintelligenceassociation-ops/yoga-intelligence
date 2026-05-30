@@ -16,6 +16,7 @@ const navLinks = [
   { name: "Home", href: "#home" },
   { name: "About", href: "#about" },
   { name: "Classes", href: "#classes" },
+  { name: "Reviews", href: "#testimonials" },
   { name: "Products", href: "#products" },
   { name: "Lifestyle", href: "#lifestyle" },
   { name: "YoYogi", href: "#yoyogi" },

@@ -6,6 +6,7 @@ import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import About from "./components/About";
 import Classes from "./components/Classes";
+import Testimonials from "./components/Testimonials";
 import Products from "./components/Products";
 import Lifestyle from "./components/Lifestyle";
 import YoYogi from "./components/YoYogi";
@@ -47,6 +48,7 @@ export default function App() {
         <Hero onExploreClasses={() => scrollTo("classes")} />
         <About />
         <Classes />
+        <Testimonials />
         <Products />
         <Lifestyle />
         <YoYogi isAuthenticated={isAuthenticated} onLoginClick={openAuth} />
