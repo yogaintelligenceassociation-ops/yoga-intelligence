@@ -79,18 +79,22 @@ export const IMAGES = {
     triphala: "/images/products/triphala.jpg",
     panchsakar: "/images/products/panchsakar.jpg",
     sitopaladi: "/images/products/sitopaladi.jpg",
-    slimfit: "https://images.unsplash.com/photo-1758525732480-8df43412b54c?w=800&q=85&auto=format&fit=crop",
+    slimfit: "/images/products/slimfit.jpg",
     hairPack: "/images/products/hair-pack.jpg",
     facePack: "https://images.unsplash.com/photo-1761864293811-d6e937225df4?w=800&q=85&auto=format&fit=crop",
   },
 
   // Editorial lifestyle imagery
   lifestyle: {
-    suryaNamaskar: "https://images.unsplash.com/photo-1520953822729-5955ba4f37d0?w=900&q=85&auto=format&fit=crop",
+    // Surya Namaskar: silhouette in Anjaneyasana (sun salutation lunge) at sunrise
+    suryaNamaskar: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=900&q=85&auto=format&fit=crop",
     pranayama: "https://images.unsplash.com/photo-1620919203384-7a23fdeb97fa?w=900&q=85&auto=format&fit=crop",
-    backPain: "https://images.unsplash.com/photo-1516209293065-e5b8066cc0d1?w=900&q=85&auto=format&fit=crop",
+    // Back Pain: group doing yoga floor work / spinal extensions on mats
+    backPain: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=900&q=85&auto=format&fit=crop",
     morning: "https://images.unsplash.com/photo-1636619297905-54f124aa90b2?w=900&q=85&auto=format&fit=crop",
-    nutrition: "https://images.unsplash.com/photo-1720720406887-79b2d0420cb1?w=900&q=85&auto=format&fit=crop",
-    meditation: "https://images.unsplash.com/photo-1758274526671-ad18176acb01?w=900&q=85&auto=format&fit=crop",
+    // Nutrition: colourful Buddha bowl — avocado, chickpeas, tomatoes, radish, sweet potato
+    nutrition: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900&q=85&auto=format&fit=crop",
+    // Meditation: person sitting cross-legged with singing bowl + incense (proper lotus pose)
+    meditation: "https://images.unsplash.com/photo-1593811167562-9cef47bfc4d7?w=900&q=85&auto=format&fit=crop",
   },
 };
