@@ -47,16 +47,28 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
     try {
       const data = await api.sendOtp(phone);
-      setOtpToken(data.otp_token || "");
+
+      if (!data.otp_token) {
+        throw new Error("Failed to start OTP session. Please try again.");
+      }
+
+      setOtpToken(data.otp_token);
 
       if (data.dev_otp) {
         // Development convenience — never present in production responses.
-        toast.info(`Dev mode OTP: ${data.dev_otp}`, { duration: 6000 });
+        toast.info(`Dev mode OTP: ${data.dev_otp}`, { duration: 8000 });
+        setStep(2);
+      } else if (data.sms_sent === false) {
+        // SMS failed on the server side — show a clear error rather than
+        // silently saying "check your phone" when nothing was sent.
+        throw new Error(
+          "SMS delivery failed. Please check your number and try again, or contact us on WhatsApp."
+        );
       } else {
-        toast.success("OTP sent. Check your phone.");
+        toast.success("OTP sent! Check your SMS.");
+        setStep(2);
       }
 
-      setStep(2);
       setCountdown(30);
       // Focus the first OTP cell once it renders.
       setTimeout(() => otpRefs.current[0]?.focus(), 50);
