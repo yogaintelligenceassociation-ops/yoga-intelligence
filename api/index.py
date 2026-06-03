@@ -189,47 +189,23 @@ def rate_limit(key: str, limit: int, window_seconds: int) -> None:
 
 # ─── Fast2SMS ───────────────────────────────────────────────────────────────
 async def send_sms_fast2sms(phone: str, otp: str) -> dict:
-    """Try multiple Fast2SMS delivery routes; capture each error for debugging.
+    """Send the OTP via Fast2SMS using ONLY the cheap dedicated 'otp' route
+    (₹0.25 / 25 paise per SMS).
 
-    Routes:
-      • 'otp'  — OTP-specific, bypasses DND. Requires one-time website
-                 verification on the Fast2SMS dashboard. PREFERRED.
-      • 'q'    — Quick transactional. Blocked by DND for most Indian numbers.
-                 Used as fallback only.
+    We deliberately do NOT fall back to the 'q' (Quick/international) route,
+    because that route costs ₹5 per SMS. Capping to the 'otp' route guarantees
+    the per-OTP cost is never more than 25 paise.
+
+    The 'otp' route needs a one-time "OTP SMS KYC" on the Fast2SMS dashboard
+    (their own Aadhaar verification — NOT government DLT). Until that KYC is
+    done, this route returns an error (status 996) and no SMS is sent — which
+    is intentional, so you are never silently charged the expensive ₹5 rate.
     """
     if not FAST2SMS_API_KEY:
         return {"sent": False, "reason": "FAST2SMS_API_KEY not set on the server"}
 
-    # Kept short so it fits a single SMS segment (cheapest, most reliable).
-    message = f"Your Yoga Intelligence OTP is {otp}. Valid {OTP_EXPIRE_MINS} min. Do not share."
     headers = {"authorization": FAST2SMS_API_KEY, "Content-Type": "application/json"}
-    errors: list[str] = []
 
-    # Route 1: Quick transactional — works without DLT/website verification for
-    # non-DND numbers. This is the route that actually delivers today, so we try
-    # it FIRST (the 'otp' route 996s until the dashboard website-verify is done).
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(
-                "https://www.fast2sms.com/dev/bulkV2",
-                headers=headers,
-                json={
-                    "route": "q",
-                    "message": message,
-                    "language": "english",
-                    "flash": 0,
-                    "numbers": phone,
-                },
-            )
-            data = r.json()
-            if data.get("return") is True:
-                return {"sent": True, "route": "quick"}
-            errors.append(f"q:{data.get('message','no msg')}")
-    except Exception as exc:
-        errors.append(f"q:{type(exc).__name__}")
-
-    # Route 2: OTP route — bypasses DND (works for ALL numbers) once the website
-    # is verified on the Fast2SMS dashboard. Tried as a fallback.
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
@@ -240,13 +216,11 @@ async def send_sms_fast2sms(phone: str, otp: str) -> dict:
             data = r.json()
             if data.get("return") is True:
                 return {"sent": True, "route": "otp"}
-            errors.append(f"otp:{data.get('message','no msg')}")
+            reason = data.get("message", "Fast2SMS error")
     except Exception as exc:
-        errors.append(f"otp:{type(exc).__name__}")
+        reason = f"{type(exc).__name__}"
 
-    reason = " | ".join(errors) if errors else "SMS provider unreachable"
-    # Log to Vercel function logs so the owner can debug from the dashboard.
-    print(f"[Fast2SMS] FAIL for {phone}: {reason}")
+    print(f"[Fast2SMS] OTP-route FAIL for {phone}: {reason}")
     return {"sent": False, "reason": reason}
 
 
