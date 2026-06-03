@@ -200,30 +200,14 @@ async def send_sms_fast2sms(phone: str, otp: str) -> dict:
     if not FAST2SMS_API_KEY:
         return {"sent": False, "reason": "FAST2SMS_API_KEY not set on the server"}
 
-    message = (
-        f"Your Yoga Intelligence OTP is: {otp}. "
-        f"Valid for {OTP_EXPIRE_MINS} minutes. Do not share it. "
-        f"- Yogacharya Mrityunjay Pandey"
-    )
+    # Kept short so it fits a single SMS segment (cheapest, most reliable).
+    message = f"Your Yoga Intelligence OTP is {otp}. Valid {OTP_EXPIRE_MINS} min. Do not share."
     headers = {"authorization": FAST2SMS_API_KEY, "Content-Type": "application/json"}
     errors: list[str] = []
 
-    # Route 1: OTP route (requires Fast2SMS website verification — see README)
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(
-                "https://www.fast2sms.com/dev/bulkV2",
-                headers=headers,
-                json={"variables_values": otp, "route": "otp", "numbers": phone},
-            )
-            data = r.json()
-            if data.get("return") is True:
-                return {"sent": True, "route": "otp"}
-            errors.append(f"otp:{data.get('message','no msg')}")
-    except Exception as exc:
-        errors.append(f"otp:{type(exc).__name__}")
-
-    # Route 2: Quick transactional (fallback)
+    # Route 1: Quick transactional — works without DLT/website verification for
+    # non-DND numbers. This is the route that actually delivers today, so we try
+    # it FIRST (the 'otp' route 996s until the dashboard website-verify is done).
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
@@ -243,6 +227,22 @@ async def send_sms_fast2sms(phone: str, otp: str) -> dict:
             errors.append(f"q:{data.get('message','no msg')}")
     except Exception as exc:
         errors.append(f"q:{type(exc).__name__}")
+
+    # Route 2: OTP route — bypasses DND (works for ALL numbers) once the website
+    # is verified on the Fast2SMS dashboard. Tried as a fallback.
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                "https://www.fast2sms.com/dev/bulkV2",
+                headers=headers,
+                json={"variables_values": otp, "route": "otp", "numbers": phone},
+            )
+            data = r.json()
+            if data.get("return") is True:
+                return {"sent": True, "route": "otp"}
+            errors.append(f"otp:{data.get('message','no msg')}")
+    except Exception as exc:
+        errors.append(f"otp:{type(exc).__name__}")
 
     reason = " | ".join(errors) if errors else "SMS provider unreachable"
     # Log to Vercel function logs so the owner can debug from the dashboard.
