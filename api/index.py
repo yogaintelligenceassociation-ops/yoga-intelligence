@@ -189,17 +189,26 @@ def rate_limit(key: str, limit: int, window_seconds: int) -> None:
 
 # ─── Fast2SMS ───────────────────────────────────────────────────────────────
 async def send_sms_fast2sms(phone: str, otp: str) -> dict:
+    """Try multiple Fast2SMS delivery routes; capture each error for debugging.
+
+    Routes:
+      • 'otp'  — OTP-specific, bypasses DND. Requires one-time website
+                 verification on the Fast2SMS dashboard. PREFERRED.
+      • 'q'    — Quick transactional. Blocked by DND for most Indian numbers.
+                 Used as fallback only.
+    """
     if not FAST2SMS_API_KEY:
-        return {"sent": False, "reason": "SMS provider not configured"}
+        return {"sent": False, "reason": "FAST2SMS_API_KEY not set on the server"}
 
     message = (
         f"Your Yoga Intelligence OTP is: {otp}. "
         f"Valid for {OTP_EXPIRE_MINS} minutes. Do not share it. "
         f"- Yogacharya Mrityunjay Pandey"
     )
-
     headers = {"authorization": FAST2SMS_API_KEY, "Content-Type": "application/json"}
+    errors: list[str] = []
 
+    # Route 1: OTP route (requires Fast2SMS website verification — see README)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
@@ -207,11 +216,14 @@ async def send_sms_fast2sms(phone: str, otp: str) -> dict:
                 headers=headers,
                 json={"variables_values": otp, "route": "otp", "numbers": phone},
             )
-            if r.json().get("return") is True:
+            data = r.json()
+            if data.get("return") is True:
                 return {"sent": True, "route": "otp"}
-    except Exception:
-        pass
+            errors.append(f"otp:{data.get('message','no msg')}")
+    except Exception as exc:
+        errors.append(f"otp:{type(exc).__name__}")
 
+    # Route 2: Quick transactional (fallback)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
@@ -228,9 +240,14 @@ async def send_sms_fast2sms(phone: str, otp: str) -> dict:
             data = r.json()
             if data.get("return") is True:
                 return {"sent": True, "route": "quick"}
-            return {"sent": False, "reason": data.get("message", "SMS provider error")}
+            errors.append(f"q:{data.get('message','no msg')}")
     except Exception as exc:
-        return {"sent": False, "reason": "SMS provider unreachable"}
+        errors.append(f"q:{type(exc).__name__}")
+
+    reason = " | ".join(errors) if errors else "SMS provider unreachable"
+    # Log to Vercel function logs so the owner can debug from the dashboard.
+    print(f"[Fast2SMS] FAIL for {phone}: {reason}")
+    return {"sent": False, "reason": reason}
 
 
 # ─── Google Sheet logging (best-effort, never blocks login) ─────────────────
@@ -316,18 +333,22 @@ async def send_otp(body: SendOTPRequest, request: Request):
     otp_token = make_otp_token(body.phone, otp_code)
 
     sms_result = await send_sms_fast2sms(body.phone, otp_code)
+    sent = sms_result.get("sent", False)
 
     response: dict = {
         "success": True,
         "message": f"OTP sent to +91 {body.phone}",
-        "sms_sent": sms_result.get("sent", False),
+        "sms_sent": sent,
         "otp_token": otp_token,
     }
 
-    # Only echo the OTP back in development; never in production.
-    if not sms_result.get("sent", False) and not IS_PRODUCTION:
-        response["dev_otp"] = otp_code
-        response["note"] = "SMS provider not configured — dev OTP returned for local testing."
+    if not sent:
+        # Surface the Fast2SMS rejection reason so the site owner can diagnose
+        # without digging through logs. End-users see a friendly toast.
+        response["sms_error"] = sms_result.get("reason", "unknown")
+        if not IS_PRODUCTION:
+            response["dev_otp"] = otp_code
+            response["note"] = "SMS failed — dev OTP returned for local testing."
 
     return response
 
