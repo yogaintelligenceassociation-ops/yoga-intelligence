@@ -6,9 +6,10 @@ import { api } from "../lib/api";
 import BrandLogo from "./BrandLogo";
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
-  const [step, setStep] = useState(1); // 1 name+phone, 2 otp, 3 success
+  const [step, setStep] = useState(1); // 1 name+phone+email, 2 otp, 3 success
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [otpToken, setOtpToken] = useState("");
   const [countdown, setCountdown] = useState(0);
@@ -17,6 +18,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const otpRefs = useRef([]);
 
   const nameValid = name.trim().length >= 2;
+  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 
   useEffect(() => {
     if (!isOpen) {
@@ -24,6 +26,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         setStep(1);
         setName("");
         setPhone("");
+        setEmail("");
         setOtp(["", "", "", "", "", ""]);
         setOtpToken("");
         setCountdown(0);
@@ -41,31 +44,30 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   }, [countdown]);
 
   const handleSendOTP = async () => {
-    if (phone.length < 10 || !nameValid) return;
+    if (phone.length < 10 || !nameValid || !emailValid) return;
     setLoading(true);
     setError("");
 
     try {
-      const data = await api.sendOtp(phone);
+      const data = await api.sendOtp(phone, email.trim());
 
       if (!data.otp_token) {
-        throw new Error("Failed to start OTP session. Please try again.");
+        throw new Error("Couldn't start verification. Please try again.");
       }
 
       setOtpToken(data.otp_token);
 
       if (data.dev_otp) {
         // Development convenience — never present in production responses.
-        toast.info(`Dev mode OTP: ${data.dev_otp}`, { duration: 8000 });
+        toast.info(`Dev mode code: ${data.dev_otp}`, { duration: 8000 });
         setStep(2);
       } else if (data.sms_sent === false) {
-        // SMS failed on the server side — show a clear error rather than
-        // silently saying "check your phone" when nothing was sent.
+        // Email send failed server-side — show a clear error.
         throw new Error(
-          "SMS delivery failed. Please check your number and try again, or contact us on WhatsApp."
+          "We couldn't send the email. Please check your address and try again."
         );
       } else {
-        toast.success("OTP sent! Check your SMS.");
+        toast.success("Code sent! Check your email inbox (and spam).");
         setStep(2);
       }
 
@@ -73,7 +75,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       // Focus the first OTP cell once it renders.
       setTimeout(() => otpRefs.current[0]?.focus(), 50);
     } catch (err) {
-      const msg = err.message || "Failed to send OTP";
+      const msg = err.message || "Failed to send code";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -120,7 +122,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setError("");
 
     try {
-      const data = await api.verifyOtp(phone, otpString, otpToken, name.trim());
+      const data = await api.verifyOtp(phone, email.trim(), otpString, otpToken, name.trim());
       setStep(3);
       toast.success("Welcome to Yoga Intelligence");
       setTimeout(() => onAuthSuccess(phone, data.token, data.name || name.trim()), 1100);
@@ -178,7 +180,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 Welcome to Yoga Intelligence
               </h2>
               <p className="text-[#6B7280] text-sm text-center mb-8">
-                Enter your mobile number to continue
+                Enter your details to continue
               </p>
 
               {/* Name */}
@@ -200,7 +202,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               </div>
 
               {/* Mobile */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <label className="block text-sm font-medium text-[#1A1A1A] mb-2">
                   Mobile Number
                 </label>
@@ -217,20 +219,42 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                     maxLength={10}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendOTP()}
+                    onKeyDown={(e) => e.key === "Enter" && document.querySelector('[data-testid="auth-email-input"]')?.focus()}
                     placeholder="10-digit number"
                     className="flex-1 px-4 py-3 rounded-xl border border-black/10 text-sm text-[#1A1A1A] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F07A1A]/30 focus:border-[#F07A1A]/40 transition-colors"
                   />
                 </div>
               </div>
 
+              {/* Email — the verification code is sent here */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-[#1A1A1A] mb-2">
+                  Email Address
+                </label>
+                <input
+                  data-testid="auth-email-input"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  maxLength={120}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendOTP()}
+                  placeholder="you@example.com"
+                  className="w-full px-4 py-3 rounded-xl border border-black/10 text-sm text-[#1A1A1A] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F07A1A]/30 focus:border-[#F07A1A]/40 transition-colors"
+                />
+                <p className="text-[11px] text-[#9CA3AF] mt-1.5">
+                  We'll email you a 6-digit code to verify it's really you.
+                </p>
+              </div>
+
               <button
                 data-testid="auth-send-otp-button"
                 onClick={handleSendOTP}
-                disabled={phone.length < 10 || !nameValid || loading}
+                disabled={phone.length < 10 || !nameValid || !emailValid || loading}
                 className="w-full py-4 rounded-xl bg-[#F07A1A] text-white font-semibold text-sm hover:bg-[#E56F12] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-poppins flex items-center justify-center gap-2"
               >
-                {loading ? <RefreshCw size={16} className="animate-spin" /> : (<>Send OTP <ArrowRight size={16} /></>)}
+                {loading ? <RefreshCw size={16} className="animate-spin" /> : (<>Send Code <ArrowRight size={16} /></>)}
               </button>
 
               <p className="text-xs text-[#9CA3AF] text-center mt-4">
@@ -242,11 +266,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           {step === 2 && (
             <div>
               <h2 className="font-poppins font-bold text-2xl text-[#1A1A1A] text-center mb-1">
-                Verify Your Number
+                Check your email
               </h2>
               <p className="text-[#6B7280] text-sm text-center mb-8">
-                Enter the 6-digit OTP sent to{" "}
-                <span className="font-semibold text-[#1A1A1A]">+91 {phone}</span>
+                Enter the 6-digit code sent to{" "}
+                <span className="font-semibold text-[#1A1A1A]">{email}</span>
               </p>
 
               <div className="flex gap-2 justify-center mb-6" data-testid="auth-otp-input">
@@ -284,13 +308,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                     countdown > 0 ? "text-[#9CA3AF] cursor-not-allowed" : "text-[#F07A1A] hover:text-[#E56F12]"
                   } transition-colors`}
                 >
-                  {countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP"}
+                  {countdown > 0 ? `Resend in ${countdown}s` : "Resend code"}
                 </button>
                 <button
                   onClick={() => setStep(1)}
                   className="text-sm text-[#6B7280] hover:text-[#1A1A1A] transition-colors"
                 >
-                  ← Change number
+                  ← Change details
                 </button>
               </div>
             </div>

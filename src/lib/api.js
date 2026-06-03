@@ -63,9 +63,9 @@ export class ApiError extends Error {
 }
 
 export const api = {
-  sendOtp: (phone) => request("POST", "/api/auth/send-otp", { body: { phone } }),
-  verifyOtp: (phone, otp, otpToken, name = "") =>
-    request("POST", "/api/auth/verify-otp", { body: { phone, otp, otp_token: otpToken, name } }),
+  sendOtp: (phone, email) => request("POST", "/api/auth/send-otp", { body: { phone, email } }),
+  verifyOtp: (phone, email, otp, otpToken, name = "") =>
+    request("POST", "/api/auth/verify-otp", { body: { phone, email, otp, otp_token: otpToken, name } }),
   me: () => request("GET", "/api/auth/me", { auth: true }),
   chat: (messages, sessionId, signal) =>
     request("POST", "/api/chat", {

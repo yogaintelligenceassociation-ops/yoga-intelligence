@@ -36,7 +36,10 @@ load_dotenv()
 #   • the login session is a JWT held in the browser
 #   • new sign-ups (name + phone) are sent only to a Google Sheet
 #   • YoYogi chats are ephemeral and never stored
-FAST2SMS_API_KEY = os.environ.get("FAST2SMS_API_KEY", "").strip()
+# Email OTP via Resend (https://resend.com) — free, instant, no DLT/billing.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+# From address. Use Resend's shared sender until you verify your own domain.
+OTP_FROM_EMAIL = os.environ.get("OTP_FROM_EMAIL", "Yoga Intelligence <onboarding@resend.dev>").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 # Optional: Google Apps Script Web App URL that appends {name, phone} to a Sheet.
 GOOGLE_SHEET_WEBHOOK_URL = os.environ.get("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
@@ -112,32 +115,32 @@ def verify_jwt(token: str) -> dict:
 # send-otp hashes the code into a short-lived signed token and returns it to the
 # client; verify-otp checks the user's entered code against that token. The plain
 # OTP is never stored anywhere — only its salted hash inside a signed, expiring JWT.
-def _otp_hash(phone: str, otp: str) -> str:
-    return hmac.new(JWT_SECRET.encode(), f"{phone}:{otp}".encode(), hashlib.sha256).hexdigest()
+def _otp_hash(key: str, otp: str) -> str:
+    return hmac.new(JWT_SECRET.encode(), f"{key}:{otp}".encode(), hashlib.sha256).hexdigest()
 
 
-def make_otp_token(phone: str, otp: str) -> str:
+def make_otp_token(email: str, otp: str) -> str:
     payload = {
         "purpose": "otp",
-        "phone": phone,
-        "h": _otp_hash(phone, otp),
+        "email": email,
+        "h": _otp_hash(email, otp),
         "iat": datetime.now(timezone.utc),
         "exp": datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 
-def verify_otp_token(token: str, phone: str, otp: str) -> None:
+def verify_otp_token(token: str, email: str, otp: str) -> None:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=400, detail="OTP expired. Please request a new one.")
+        raise HTTPException(status_code=400, detail="Code expired. Please request a new one.")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=400, detail="Invalid OTP session. Please request a new one.")
-    if payload.get("purpose") != "otp" or payload.get("phone") != phone:
-        raise HTTPException(status_code=400, detail="Invalid OTP session. Please request a new one.")
-    if not hmac.compare_digest(payload.get("h", ""), _otp_hash(phone, otp)):
-        raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
+        raise HTTPException(status_code=400, detail="Invalid session. Please request a new code.")
+    if payload.get("purpose") != "otp" or payload.get("email") != email:
+        raise HTTPException(status_code=400, detail="Invalid session. Please request a new code.")
+    if not hmac.compare_digest(payload.get("h", ""), _otp_hash(email, otp)):
+        raise HTTPException(status_code=400, detail="Incorrect code. Please try again.")
 
 
 def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
@@ -187,61 +190,79 @@ def rate_limit(key: str, limit: int, window_seconds: int) -> None:
     bucket.append(now)
 
 
-# ─── Fast2SMS ───────────────────────────────────────────────────────────────
-async def send_sms_fast2sms(phone: str, otp: str) -> dict:
-    """Send the OTP via Fast2SMS using ONLY the cheap dedicated 'otp' route
-    (₹0.25 / 25 paise per SMS).
+# ─── Email OTP (Resend) ──────────────────────────────────────────────────────
+def _otp_email_html(otp: str) -> str:
+    return f"""\
+<!doctype html><html><body style="margin:0;background:#FDFAF5;font-family:Inter,Arial,sans-serif;">
+  <div style="max-width:480px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:22px;color:#F07A1A;">YOGA INTELLIGENCE</div>
+      <div style="font-size:12px;color:#3A7D2C;letter-spacing:1px;">By Yogacharya Mrityunjay Pandey</div>
+    </div>
+    <div style="background:#fff;border:1px solid #eee;border-radius:18px;padding:32px 28px;text-align:center;box-shadow:0 8px 30px rgba(16,24,40,0.06);">
+      <div style="height:4px;width:60px;border-radius:4px;margin:0 auto 22px;background:linear-gradient(90deg,#3A7D2C,#F07A1A,#F5C118);"></div>
+      <h1 style="font-family:Poppins,Arial,sans-serif;font-size:20px;color:#1A1A1A;margin:0 0 8px;">Verify your login</h1>
+      <p style="color:#6B7280;font-size:14px;margin:0 0 24px;">Enter this code to continue. It expires in {OTP_EXPIRE_MINS} minutes.</p>
+      <div style="font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:40px;letter-spacing:10px;color:#3A7D2C;background:#F8FBF6;border-radius:12px;padding:16px 0;">{otp}</div>
+      <p style="color:#9CA3AF;font-size:12px;margin:24px 0 0;">If you didn't request this, you can safely ignore this email.</p>
+    </div>
+    <p style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:18px;">© Yoga Intelligence — संकल्प स्वस्थ भारत का 🇮🇳</p>
+  </div>
+</body></html>"""
 
-    We deliberately do NOT fall back to the 'q' (Quick/international) route,
-    because that route costs ₹5 per SMS. Capping to the 'otp' route guarantees
-    the per-OTP cost is never more than 25 paise.
 
-    The 'otp' route needs a one-time "OTP SMS KYC" on the Fast2SMS dashboard
-    (their own Aadhaar verification — NOT government DLT). Until that KYC is
-    done, this route returns an error (status 996) and no SMS is sent — which
-    is intentional, so you are never silently charged the expensive ₹5 rate.
-    """
-    if not FAST2SMS_API_KEY:
-        return {"sent": False, "reason": "FAST2SMS_API_KEY not set on the server"}
+async def send_otp_email(email: str, otp: str) -> dict:
+    """Email the OTP via Resend. Free, instant, no DLT. Returns delivery status."""
+    if not RESEND_API_KEY:
+        return {"sent": False, "reason": "RESEND_API_KEY not set on the server"}
 
-    headers = {"authorization": FAST2SMS_API_KEY, "Content-Type": "application/json"}
-
+    headers = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "from": OTP_FROM_EMAIL,
+        "to": [email],
+        "subject": f"{otp} is your Yoga Intelligence code",
+        "html": _otp_email_html(otp),
+        "text": f"Your Yoga Intelligence verification code is {otp}. It expires in {OTP_EXPIRE_MINS} minutes.",
+    }
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(
-                "https://www.fast2sms.com/dev/bulkV2",
-                headers=headers,
-                json={"variables_values": otp, "route": "otp", "numbers": phone},
-            )
-            data = r.json()
-            if data.get("return") is True:
-                return {"sent": True, "route": "otp"}
-            reason = data.get("message", "Fast2SMS error")
+        async with httpx.AsyncClient(timeout=12) as client:
+            r = await client.post("https://api.resend.com/emails", headers=headers, json=payload)
+            if r.status_code in (200, 201):
+                return {"sent": True}
+            reason = (r.json().get("message") if r.headers.get("content-type", "").startswith("application/json") else r.text) or f"HTTP {r.status_code}"
     except Exception as exc:
         reason = f"{type(exc).__name__}"
 
-    print(f"[Fast2SMS] OTP-route FAIL for {phone}: {reason}")
+    print(f"[Resend] email OTP FAIL for {email}: {reason}")
     return {"sent": False, "reason": reason}
 
 
 # ─── Google Sheet logging (best-effort, never blocks login) ─────────────────
-async def log_to_sheet(name: str, phone: str) -> None:
+async def log_to_sheet(name: str, phone: str, email: str = "") -> None:
     if not GOOGLE_SHEET_WEBHOOK_URL:
         return
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             await client.post(
                 GOOGLE_SHEET_WEBHOOK_URL,
-                json={"name": name, "phone": phone},
+                json={"name": name, "phone": phone, "email": email},
             )
     except Exception:
         # Logging to the sheet must never break authentication.
         pass
 
 
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def is_valid_email(email: str) -> bool:
+    return bool(_EMAIL_RE.match((email or "").strip())) and len(email) <= 120
+
+
 # ─── Models ─────────────────────────────────────────────────────────────────
 class SendOTPRequest(BaseModel):
     phone: str = Field(..., min_length=10, max_length=15)
+    email: str = Field(..., min_length=5, max_length=120)
 
     @field_validator("phone")
     @classmethod
@@ -251,9 +272,18 @@ class SendOTPRequest(BaseModel):
             raise ValueError("Invalid phone — must be a 10-digit Indian mobile number")
         return cleaned
 
+    @field_validator("email")
+    @classmethod
+    def _valid_email(cls, v: str) -> str:
+        cleaned = (v or "").strip().lower()
+        if not is_valid_email(cleaned):
+            raise ValueError("Please enter a valid email address")
+        return cleaned
+
 
 class VerifyOTPRequest(BaseModel):
     phone: str = Field(..., min_length=10, max_length=15)
+    email: str = Field(..., min_length=5, max_length=120)
     otp: str = Field(..., min_length=6, max_length=6)
     otp_token: str = Field(..., min_length=10, max_length=2000)
     name: str = Field("", max_length=80)
@@ -264,6 +294,14 @@ class VerifyOTPRequest(BaseModel):
         cleaned = normalize_phone(v)
         if not is_valid_phone(cleaned):
             raise ValueError("Invalid phone")
+        return cleaned
+
+    @field_validator("email")
+    @classmethod
+    def _valid_email(cls, v: str) -> str:
+        cleaned = (v or "").strip().lower()
+        if not is_valid_email(cleaned):
+            raise ValueError("Invalid email")
         return cleaned
 
     @field_validator("otp")
@@ -300,29 +338,28 @@ class ChatResponse(BaseModel):
 async def send_otp(body: SendOTPRequest, request: Request):
     client_ip = request.client.host if request.client else "unknown"
     rate_limit(f"otp:{client_ip}", limit=5, window_seconds=60)
-    rate_limit(f"otp:phone:{body.phone}", limit=3, window_seconds=300)
+    rate_limit(f"otp:email:{body.email}", limit=3, window_seconds=300)
 
     otp_code = str(secrets.randbelow(1_000_000)).zfill(6)
     # Stateless: the code lives only inside this signed, 5-minute token.
-    otp_token = make_otp_token(body.phone, otp_code)
+    otp_token = make_otp_token(body.email, otp_code)
 
-    sms_result = await send_sms_fast2sms(body.phone, otp_code)
-    sent = sms_result.get("sent", False)
+    email_result = await send_otp_email(body.email, otp_code)
+    sent = email_result.get("sent", False)
 
     response: dict = {
         "success": True,
-        "message": f"OTP sent to +91 {body.phone}",
-        "sms_sent": sent,
+        "message": f"Verification code sent to {body.email}",
+        "sms_sent": sent,  # kept key name for frontend compatibility
         "otp_token": otp_token,
     }
 
     if not sent:
-        # Surface the Fast2SMS rejection reason so the site owner can diagnose
-        # without digging through logs. End-users see a friendly toast.
-        response["sms_error"] = sms_result.get("reason", "unknown")
+        # Surface the email-provider reason so the owner can diagnose quickly.
+        response["sms_error"] = email_result.get("reason", "unknown")
         if not IS_PRODUCTION:
             response["dev_otp"] = otp_code
-            response["note"] = "SMS failed — dev OTP returned for local testing."
+            response["note"] = "Email send failed — dev OTP returned for local testing."
 
     return response
 
@@ -330,18 +367,18 @@ async def send_otp(body: SendOTPRequest, request: Request):
 @app.post("/api/auth/verify-otp")
 async def verify_otp(body: VerifyOTPRequest, request: Request):
     client_ip = request.client.host if request.client else "unknown"
-    # Best-effort brute-force protection (no DB): cap verify attempts per IP/phone.
+    # Best-effort brute-force protection (no DB): cap verify attempts per IP/email.
     rate_limit(f"verify:{client_ip}", limit=10, window_seconds=60)
-    rate_limit(f"verify:phone:{body.phone}", limit=6, window_seconds=300)
+    rate_limit(f"verify:email:{body.email}", limit=6, window_seconds=300)
 
     # Validates the signed OTP token + entered code; raises on expiry/mismatch.
-    verify_otp_token(body.otp_token, body.phone, body.otp)
+    verify_otp_token(body.otp_token, body.email, body.otp)
 
     name = body.name or ""
 
-    # Record the sign-up (name + phone) to the Google Sheet only. Best-effort —
-    # never blocks login. This is the only place the name/number is persisted.
-    await log_to_sheet(name, body.phone)
+    # Record the sign-up (name + phone + email) to the Google Sheet only.
+    # Best-effort — never blocks login. The only place details are persisted.
+    await log_to_sheet(name, body.phone, body.email)
 
     return {
         "success": True,
