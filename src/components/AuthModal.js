@@ -1,23 +1,41 @@
 import { useState, useRef, useEffect } from "react";
 import { X, ArrowRight, CheckCircle, RefreshCw } from "lucide-react";
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+} from "firebase/auth";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
 import { toast } from "sonner";
 import { api } from "../lib/api";
+import { auth, firebaseConfigured } from "../lib/firebase";
 import BrandLogo from "./BrandLogo";
 
+/**
+ * AuthModal — phone OTP login powered by Firebase Phone Authentication.
+ *
+ * Flow:
+ *   step 1  name + phone  → Firebase sends the OTP (Google infrastructure)
+ *   step 2  enter 6-digit code → Firebase verifies → we get an ID token
+ *   step 3  success → our backend validates the token, logs the sign-up, and
+ *           returns our long-lived session token (persistent login unchanged)
+ *
+ * Firebase requires an invisible reCAPTCHA verifier — handled transparently.
+ */
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [step, setStep] = useState(1); // 1 name+phone, 2 otp, 3 success
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [otpToken, setOtpToken] = useState("");
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const otpRefs = useRef([]);
+  const recaptchaRef = useRef(null); // RecaptchaVerifier instance
+  const confirmationRef = useRef(null); // Firebase ConfirmationResult
 
   const nameValid = name.trim().length >= 2;
 
+  // ── Reset state + tear down the reCAPTCHA when the modal closes ──────────
   useEffect(() => {
     if (!isOpen) {
       const t = setTimeout(() => {
@@ -25,10 +43,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         setName("");
         setPhone("");
         setOtp(["", "", "", "", "", ""]);
-        setOtpToken("");
         setCountdown(0);
         setLoading(false);
         setError("");
+        confirmationRef.current = null;
+        if (recaptchaRef.current) {
+          try { recaptchaRef.current.clear(); } catch { /* noop */ }
+          recaptchaRef.current = null;
+        }
       }, 300);
       return () => clearTimeout(t);
     }
@@ -40,40 +62,54 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     return () => clearTimeout(t);
   }, [countdown]);
 
+  // ── Lazily create a single invisible reCAPTCHA verifier ─────────────────
+  const getRecaptcha = () => {
+    if (!recaptchaRef.current) {
+      recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+      });
+    }
+    return recaptchaRef.current;
+  };
+
+  const friendlyFirebaseError = (err) => {
+    const code = err?.code || "";
+    if (code.includes("invalid-phone-number")) return "Please enter a valid 10-digit mobile number.";
+    if (code.includes("too-many-requests")) return "Too many attempts. Please wait a few minutes and try again.";
+    if (code.includes("invalid-verification-code")) return "Incorrect OTP. Please check and try again.";
+    if (code.includes("code-expired")) return "This OTP has expired. Please request a new one.";
+    if (code.includes("quota-exceeded")) return "OTP service is busy right now. Please try again shortly.";
+    if (code.includes("captcha-check-failed")) return "Verification failed. Please refresh and try again.";
+    if (code.includes("network")) return "Network issue. Please check your connection and try again.";
+    return err?.message || "Something went wrong. Please try again.";
+  };
+
+  // ── Step 1 → send OTP via Firebase ──────────────────────────────────────
   const handleSendOTP = async () => {
     if (phone.length < 10 || !nameValid) return;
+    if (!firebaseConfigured) {
+      setError("Login is being set up. Please try again shortly or contact us on WhatsApp.");
+      return;
+    }
     setLoading(true);
     setError("");
 
     try {
-      const data = await api.sendOtp(phone);
+      const verifier = getRecaptcha();
+      const confirmation = await signInWithPhoneNumber(auth, `+91${phone}`, verifier);
+      confirmationRef.current = confirmation;
 
-      if (!data.otp_token) {
-        throw new Error("Failed to start OTP session. Please try again.");
-      }
-
-      setOtpToken(data.otp_token);
-
-      if (data.dev_otp) {
-        // Development convenience — never present in production responses.
-        toast.info(`Dev mode OTP: ${data.dev_otp}`, { duration: 8000 });
-        setStep(2);
-      } else if (data.sms_sent === false) {
-        // SMS failed on the server side — show a clear error rather than
-        // silently saying "check your phone" when nothing was sent.
-        throw new Error(
-          "SMS delivery failed. Please check your number and try again, or contact us on WhatsApp."
-        );
-      } else {
-        toast.success("OTP sent! Check your SMS.");
-        setStep(2);
-      }
-
+      toast.success("OTP sent! Check your SMS.");
+      setStep(2);
       setCountdown(30);
-      // Focus the first OTP cell once it renders.
       setTimeout(() => otpRefs.current[0]?.focus(), 50);
     } catch (err) {
-      const msg = err.message || "Failed to send OTP";
+      // A failed attempt can poison the reCAPTCHA — reset it so retry works.
+      if (recaptchaRef.current) {
+        try { recaptchaRef.current.clear(); } catch { /* noop */ }
+        recaptchaRef.current = null;
+      }
+      const msg = friendlyFirebaseError(err);
       setError(msg);
       toast.error(msg);
     } finally {
@@ -88,9 +124,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       next[index] = value;
       return next;
     });
-    if (value && index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
   };
 
   const handleOtpKeyDown = (index, e) => {
@@ -111,21 +145,35 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     for (let i = 0; i < 6; i++) next[i] = pasted[i] || "";
     setOtp(next);
     otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+    if (pasted.length === 6) setTimeout(() => handleVerifyOTP(pasted), 80);
   };
 
-  const handleVerifyOTP = async () => {
-    const otpString = otp.join("");
+  // ── Step 2 → confirm OTP with Firebase, then log in via our backend ─────
+  const handleVerifyOTP = async (override) => {
+    const otpString = override || otp.join("");
     if (otpString.length < 6) return;
+    if (!confirmationRef.current) {
+      setError("Your OTP session expired. Please request a new code.");
+      return;
+    }
     setLoading(true);
     setError("");
 
     try {
-      const data = await api.verifyOtp(phone, otpString, otpToken, name.trim());
+      const cred = await confirmationRef.current.confirm(otpString);
+      const idToken = await cred.user.getIdToken();
+
+      // Exchange the verified Firebase token for our own session.
+      const data = await api.firebaseLogin(idToken, name.trim());
+
       setStep(3);
       toast.success("Welcome to Yoga Intelligence");
-      setTimeout(() => onAuthSuccess(phone, data.token, data.name || name.trim()), 1100);
+      setTimeout(
+        () => onAuthSuccess(data.phone || `+91${phone}`, data.token, data.name || name.trim()),
+        1100,
+      );
     } catch (err) {
-      const msg = err.message || "Verification failed";
+      const msg = err?.code ? friendlyFirebaseError(err) : err?.message || "Verification failed";
       setError(msg);
       toast.error(msg);
       setLoading(false);
@@ -135,6 +183,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const handleResendOTP = async () => {
     if (countdown > 0) return;
     setOtp(["", "", "", "", "", ""]);
+    // Fresh reCAPTCHA for a clean resend.
+    if (recaptchaRef.current) {
+      try { recaptchaRef.current.clear(); } catch { /* noop */ }
+      recaptchaRef.current = null;
+    }
     await handleSendOTP();
   };
 
@@ -163,7 +216,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
           <DialogTitle className="sr-only">Yoga Intelligence sign in</DialogTitle>
           <DialogDescription className="sr-only">
-            Sign in to Yoga Intelligence with your mobile number and OTP.
+            Sign in to Yoga Intelligence with your mobile number and a one-time password.
           </DialogDescription>
 
           {error && (
@@ -178,14 +231,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 Welcome to Yoga Intelligence
               </h2>
               <p className="text-[#6B7280] text-sm text-center mb-8">
-                Enter your mobile number to continue
+                Enter your details to continue
               </p>
 
               {/* Name */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-[#1A1A1A] mb-2">
-                  Your Name
-                </label>
+                <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Your Name</label>
                 <input
                   data-testid="auth-name-input"
                   type="text"
@@ -201,9 +252,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
               {/* Mobile */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-[#1A1A1A] mb-2">
-                  Mobile Number
-                </label>
+                <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Mobile Number</label>
                 <div className="flex gap-2">
                   <div className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-black/10 bg-gray-50 text-sm font-medium text-[#1A1A1A] flex-shrink-0">
                     <span aria-hidden>🇮🇳</span>
@@ -269,7 +318,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
               <button
                 data-testid="auth-verify-otp-button"
-                onClick={handleVerifyOTP}
+                onClick={() => handleVerifyOTP()}
                 disabled={otp.join("").length < 6 || loading}
                 className="w-full py-4 rounded-xl bg-[#F07A1A] text-white font-semibold text-sm hover:bg-[#E56F12] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-poppins flex items-center justify-center gap-2 mb-4"
               >
@@ -307,6 +356,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               </p>
             </div>
           )}
+
+          {/* Invisible reCAPTCHA mount point (required by Firebase Phone Auth) */}
+          <div id="recaptcha-container" />
         </div>
       </DialogContent>
     </Dialog>
