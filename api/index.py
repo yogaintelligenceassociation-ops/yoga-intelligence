@@ -38,8 +38,9 @@ load_dotenv()
 #   • YoYogi chats are ephemeral and never stored
 # Email OTP via Resend (https://resend.com) — free, instant, no DLT/billing.
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
-# From address. Use Resend's shared sender until you verify your own domain.
-OTP_FROM_EMAIL = os.environ.get("OTP_FROM_EMAIL", "Yoga Intelligence <onboarding@resend.dev>").strip()
+# From address — yogaintelligence.in is a verified Resend domain, so we can
+# email ANY recipient. (Overridable via env if the domain ever changes.)
+OTP_FROM_EMAIL = os.environ.get("OTP_FROM_EMAIL", "Yoga Intelligence <noreply@yogaintelligence.in>").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 # Optional: Google Apps Script Web App URL that appends {name, phone} to a Sheet.
 GOOGLE_SHEET_WEBHOOK_URL = os.environ.get("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
