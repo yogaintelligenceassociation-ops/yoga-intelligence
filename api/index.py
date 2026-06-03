@@ -7,8 +7,11 @@ All endpoints live under /api/* so the same routing works locally and on Vercel.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 import re
+import secrets
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -29,17 +32,15 @@ load_dotenv()
 
 # ─── Config ─────────────────────────────────────────────────────────────────
 # No database. The app is fully stateless:
-#   • the phone OTP is verified by FIREBASE on the client; we verify the
-#     resulting Firebase ID token here and issue our own session JWT
+#   • OTP is verified via a short-lived SIGNED token (no storage)
 #   • the login session is a JWT held in the browser
 #   • new sign-ups (name + phone) are sent only to a Google Sheet
 #   • YoYogi chats are ephemeral and never stored
+FAST2SMS_API_KEY = os.environ.get("FAST2SMS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 # Optional: Google Apps Script Web App URL that appends {name, phone} to a Sheet.
 GOOGLE_SHEET_WEBHOOK_URL = os.environ.get("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
 JWT_SECRET = os.environ.get("JWT_SECRET_KEY", "").strip()
-# Firebase project id — used to validate the audience/issuer of ID tokens.
-FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "").strip()
 CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
 IS_PRODUCTION = os.environ.get("VERCEL_ENV", os.environ.get("NODE_ENV", "development")).lower() in {
     "production",
@@ -51,6 +52,7 @@ JWT_ALGO = "HS256"
 # The token is stored in the browser's localStorage, so re-opening the site on
 # the same device keeps the user signed in without re-entering an OTP.
 JWT_EXPIRE_HOURS = 24 * 365
+OTP_EXPIRE_MINS = 5
 LLM_MODEL = "gemini-2.5-flash"
 
 # Fail loudly when running in production without a real secret — defaults are unsafe.
@@ -106,75 +108,50 @@ def verify_jwt(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-# ─── Firebase ID-token verification (no Admin SDK / no service account) ──────
-# Firebase signs ID tokens with RS256 using rotating Google keys. We verify the
-# signature against Google's public X.509 certs and check the issuer/audience
-# match our Firebase project. Certs are cached briefly to avoid refetching.
-_FIREBASE_CERTS_URL = (
-    "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
-)
-_firebase_certs: dict = {}
-_firebase_certs_fetched_at: float = 0.0
+# ─── Stateless OTP (no database) ─────────────────────────────────────────────
+# send-otp hashes the code into a short-lived signed token and returns it to the
+# client; verify-otp checks the user's entered code against that token. The plain
+# OTP is never stored anywhere — only its salted hash inside a signed, expiring JWT.
+def _otp_hash(phone: str, otp: str) -> str:
+    return hmac.new(JWT_SECRET.encode(), f"{phone}:{otp}".encode(), hashlib.sha256).hexdigest()
 
 
-async def _get_firebase_certs() -> dict:
-    global _firebase_certs, _firebase_certs_fetched_at
-    # Google rotates these ~daily; cache for 1 hour.
-    if _firebase_certs and (time.time() - _firebase_certs_fetched_at) < 3600:
-        return _firebase_certs
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(_FIREBASE_CERTS_URL)
-        r.raise_for_status()
-        _firebase_certs = r.json()
-        _firebase_certs_fetched_at = time.time()
-    return _firebase_certs
+def make_otp_token(phone: str, otp: str) -> str:
+    payload = {
+        "purpose": "otp",
+        "phone": phone,
+        "h": _otp_hash(phone, otp),
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 
-async def verify_firebase_token(id_token: str) -> dict:
-    """Validate a Firebase ID token and return its claims (incl. phone_number)."""
-    if not FIREBASE_PROJECT_ID:
-        raise HTTPException(status_code=503, detail="Login is not configured on the server.")
-
-    from cryptography.x509 import load_pem_x509_certificate
-
+def verify_otp_token(token: str, phone: str, otp: str) -> None:
     try:
-        header = jwt.get_unverified_header(id_token)
-        kid = header.get("kid")
-        certs = await _get_firebase_certs()
-        cert_pem = certs.get(kid)
-        if not cert_pem:
-            # Cert may have rotated — refetch once.
-            global _firebase_certs_fetched_at
-            _firebase_certs_fetched_at = 0.0
-            certs = await _get_firebase_certs()
-            cert_pem = certs.get(kid)
-        if not cert_pem:
-            raise HTTPException(status_code=401, detail="Could not verify login. Please try again.")
-
-        public_key = load_pem_x509_certificate(cert_pem.encode()).public_key()
-        claims = jwt.decode(
-            id_token,
-            public_key,
-            algorithms=["RS256"],
-            audience=FIREBASE_PROJECT_ID,
-            issuer=f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}",
-        )
-    except HTTPException:
-        raise
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Login expired. Please verify again.")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Could not verify login. Please try again.")
-
-    if not claims.get("phone_number"):
-        raise HTTPException(status_code=401, detail="Phone verification missing. Please try again.")
-    return claims
+        raise HTTPException(status_code=400, detail="OTP expired. Please request a new one.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid OTP session. Please request a new one.")
+    if payload.get("purpose") != "otp" or payload.get("phone") != phone:
+        raise HTTPException(status_code=400, detail="Invalid OTP session. Please request a new one.")
+    if not hmac.compare_digest(payload.get("h", ""), _otp_hash(phone, otp)):
+        raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
 
 
 def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
     if not creds:
         raise HTTPException(status_code=401, detail="Authentication required")
     return verify_jwt(creds.credentials)
+
+
+def normalize_phone(raw: str) -> str:
+    return re.sub(r"\D", "", raw or "")[-10:]
+
+
+def is_valid_phone(phone: str) -> bool:
+    return bool(re.fullmatch(r"\d{10}", phone))
 
 
 def sanitize_text(text: str, max_len: int = 4000) -> str:
@@ -210,6 +187,69 @@ def rate_limit(key: str, limit: int, window_seconds: int) -> None:
     bucket.append(now)
 
 
+# ─── Fast2SMS ───────────────────────────────────────────────────────────────
+async def send_sms_fast2sms(phone: str, otp: str) -> dict:
+    """Try multiple Fast2SMS delivery routes; capture each error for debugging.
+
+    Routes:
+      • 'otp'  — OTP-specific, bypasses DND. Requires one-time website
+                 verification on the Fast2SMS dashboard. PREFERRED.
+      • 'q'    — Quick transactional. Blocked by DND for most Indian numbers.
+                 Used as fallback only.
+    """
+    if not FAST2SMS_API_KEY:
+        return {"sent": False, "reason": "FAST2SMS_API_KEY not set on the server"}
+
+    # Kept short so it fits a single SMS segment (cheapest, most reliable).
+    message = f"Your Yoga Intelligence OTP is {otp}. Valid {OTP_EXPIRE_MINS} min. Do not share."
+    headers = {"authorization": FAST2SMS_API_KEY, "Content-Type": "application/json"}
+    errors: list[str] = []
+
+    # Route 1: Quick transactional — works without DLT/website verification for
+    # non-DND numbers. This is the route that actually delivers today, so we try
+    # it FIRST (the 'otp' route 996s until the dashboard website-verify is done).
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                "https://www.fast2sms.com/dev/bulkV2",
+                headers=headers,
+                json={
+                    "route": "q",
+                    "message": message,
+                    "language": "english",
+                    "flash": 0,
+                    "numbers": phone,
+                },
+            )
+            data = r.json()
+            if data.get("return") is True:
+                return {"sent": True, "route": "quick"}
+            errors.append(f"q:{data.get('message','no msg')}")
+    except Exception as exc:
+        errors.append(f"q:{type(exc).__name__}")
+
+    # Route 2: OTP route — bypasses DND (works for ALL numbers) once the website
+    # is verified on the Fast2SMS dashboard. Tried as a fallback.
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                "https://www.fast2sms.com/dev/bulkV2",
+                headers=headers,
+                json={"variables_values": otp, "route": "otp", "numbers": phone},
+            )
+            data = r.json()
+            if data.get("return") is True:
+                return {"sent": True, "route": "otp"}
+            errors.append(f"otp:{data.get('message','no msg')}")
+    except Exception as exc:
+        errors.append(f"otp:{type(exc).__name__}")
+
+    reason = " | ".join(errors) if errors else "SMS provider unreachable"
+    # Log to Vercel function logs so the owner can debug from the dashboard.
+    print(f"[Fast2SMS] FAIL for {phone}: {reason}")
+    return {"sent": False, "reason": reason}
+
+
 # ─── Google Sheet logging (best-effort, never blocks login) ─────────────────
 async def log_to_sheet(name: str, phone: str) -> None:
     if not GOOGLE_SHEET_WEBHOOK_URL:
@@ -226,9 +266,39 @@ async def log_to_sheet(name: str, phone: str) -> None:
 
 
 # ─── Models ─────────────────────────────────────────────────────────────────
-class FirebaseLoginRequest(BaseModel):
-    id_token: str = Field(..., min_length=20, max_length=4000)
+class SendOTPRequest(BaseModel):
+    phone: str = Field(..., min_length=10, max_length=15)
+
+    @field_validator("phone")
+    @classmethod
+    def _valid_phone(cls, v: str) -> str:
+        cleaned = normalize_phone(v)
+        if not is_valid_phone(cleaned):
+            raise ValueError("Invalid phone — must be a 10-digit Indian mobile number")
+        return cleaned
+
+
+class VerifyOTPRequest(BaseModel):
+    phone: str = Field(..., min_length=10, max_length=15)
+    otp: str = Field(..., min_length=6, max_length=6)
+    otp_token: str = Field(..., min_length=10, max_length=2000)
     name: str = Field("", max_length=80)
+
+    @field_validator("phone")
+    @classmethod
+    def _valid_phone(cls, v: str) -> str:
+        cleaned = normalize_phone(v)
+        if not is_valid_phone(cleaned):
+            raise ValueError("Invalid phone")
+        return cleaned
+
+    @field_validator("otp")
+    @classmethod
+    def _valid_otp(cls, v: str) -> str:
+        cleaned = re.sub(r"\D", "", v or "")
+        if not re.fullmatch(r"\d{6}", cleaned):
+            raise ValueError("OTP must be 6 digits")
+        return cleaned
 
     @field_validator("name")
     @classmethod
@@ -252,27 +322,58 @@ class ChatResponse(BaseModel):
 
 
 # ─── Auth endpoints ────────────────────────────────────────────────────────
-@app.post("/api/auth/firebase-login")
-async def firebase_login(body: FirebaseLoginRequest, request: Request):
+@app.post("/api/auth/send-otp")
+async def send_otp(body: SendOTPRequest, request: Request):
     client_ip = request.client.host if request.client else "unknown"
-    rate_limit(f"login:{client_ip}", limit=20, window_seconds=60)
+    rate_limit(f"otp:{client_ip}", limit=5, window_seconds=60)
+    rate_limit(f"otp:phone:{body.phone}", limit=3, window_seconds=300)
 
-    # Verify the Firebase ID token — this proves the phone OTP was completed.
-    claims = await verify_firebase_token(body.id_token)
-    phone = claims.get("phone_number", "")  # E.164, e.g. +919101968848
-    rate_limit(f"login:phone:{phone}", limit=10, window_seconds=300)
+    otp_code = str(secrets.randbelow(1_000_000)).zfill(6)
+    # Stateless: the code lives only inside this signed, 5-minute token.
+    otp_token = make_otp_token(body.phone, otp_code)
+
+    sms_result = await send_sms_fast2sms(body.phone, otp_code)
+    sent = sms_result.get("sent", False)
+
+    response: dict = {
+        "success": True,
+        "message": f"OTP sent to +91 {body.phone}",
+        "sms_sent": sent,
+        "otp_token": otp_token,
+    }
+
+    if not sent:
+        # Surface the Fast2SMS rejection reason so the site owner can diagnose
+        # without digging through logs. End-users see a friendly toast.
+        response["sms_error"] = sms_result.get("reason", "unknown")
+        if not IS_PRODUCTION:
+            response["dev_otp"] = otp_code
+            response["note"] = "SMS failed — dev OTP returned for local testing."
+
+    return response
+
+
+@app.post("/api/auth/verify-otp")
+async def verify_otp(body: VerifyOTPRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    # Best-effort brute-force protection (no DB): cap verify attempts per IP/phone.
+    rate_limit(f"verify:{client_ip}", limit=10, window_seconds=60)
+    rate_limit(f"verify:phone:{body.phone}", limit=6, window_seconds=300)
+
+    # Validates the signed OTP token + entered code; raises on expiry/mismatch.
+    verify_otp_token(body.otp_token, body.phone, body.otp)
 
     name = body.name or ""
 
     # Record the sign-up (name + phone) to the Google Sheet only. Best-effort —
     # never blocks login. This is the only place the name/number is persisted.
-    await log_to_sheet(name, phone)
+    await log_to_sheet(name, body.phone)
 
     return {
         "success": True,
         "message": "Login successful. Welcome to Yoga Intelligence.",
-        "token": make_jwt(phone, name),
-        "phone": phone,
+        "token": make_jwt(body.phone, name),
+        "phone": body.phone,
         "name": name,
     }
 

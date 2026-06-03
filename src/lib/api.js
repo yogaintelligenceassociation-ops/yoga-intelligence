@@ -63,11 +63,9 @@ export class ApiError extends Error {
 }
 
 export const api = {
-  // Firebase verifies the phone via OTP on the client; we send the resulting
-  // Firebase ID token here. The backend validates it, logs the sign-up, and
-  // returns our own long-lived session token.
-  firebaseLogin: (idToken, name = "") =>
-    request("POST", "/api/auth/firebase-login", { body: { id_token: idToken, name } }),
+  sendOtp: (phone) => request("POST", "/api/auth/send-otp", { body: { phone } }),
+  verifyOtp: (phone, otp, otpToken, name = "") =>
+    request("POST", "/api/auth/verify-otp", { body: { phone, otp, otp_token: otpToken, name } }),
   me: () => request("GET", "/api/auth/me", { auth: true }),
   chat: (messages, sessionId, signal) =>
     request("POST", "/api/chat", {
