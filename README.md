@@ -116,7 +116,7 @@ The frontend dev server proxies `/api/*` to `http://localhost:8000`, so the same
 ### Step 1 — push to GitHub
 
 ```bash
-cd C:\Users\Asus\Desktop\Yoga_Intelligence
+cd path\to\Yoga_Intelligence
 git init
 git add .
 git commit -m "Initial commit — Yoga Intelligence v3 (Vercel-ready)"
