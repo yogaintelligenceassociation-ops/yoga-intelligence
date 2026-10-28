@@ -127,3 +127,57 @@ export const Diya = memo(function Diya({ lit = true, className = "", delay = 0 }
     </svg>
   );
 });
+
+/* Marigold petals drifting down — sparse, reuses the leaf-fall animation. */
+const PETAL_TINTS = ["#FF9A1F", "#F5C118", "#F07A1A", "#FFB347"];
+export const MarigoldPetals = memo(function MarigoldPetals({ count = 9 }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => {
+        const r = (n) => (Math.sin(i * 71.3 + n) + 1) / 2;
+        const size = 10 + r(2) * 9;
+        const tint = PETAL_TINTS[i % PETAL_TINTS.length];
+        return (
+          <div
+            key={i}
+            className="leaf-particle"
+            style={{
+              left: `${4 + r(1) * 92}%`,
+              "--leaf-duration": `${13 + r(3) * 10}s`,
+              "--leaf-delay": `${-r(4) * 16}s`,
+              "--leaf-drift": `${(r(5) - 0.5) * 110}px`,
+              "--leaf-opacity": 0.5 + r(6) * 0.3,
+            }}
+          >
+            <svg width={size} height={size * 1.25} viewBox="0 0 20 25">
+              <path d="M10 1 C 17 7, 18 17, 10 24 C 2 17, 3 7, 10 1 Z" fill={tint} />
+              <path d="M10 5 C 12 10, 12 16, 10 21" stroke="#fff" strokeOpacity="0.45" strokeWidth="0.9" fill="none" />
+            </svg>
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+/* Marigold toran — a hanging flower garland along a section's top edge. */
+export const Toran = memo(function Toran({ className = "" }) {
+  return (
+    <div className={`pointer-events-none overflow-hidden ${className}`} aria-hidden="true">
+      <div className="flex" style={{ width: "max-content" }}>
+        {Array.from({ length: 30 }, (_, i) => (
+          <svg key={i} className="flex-shrink-0 w-[60px] md:w-[76px] h-auto" viewBox="0 0 76 64">
+            <path d="M0 4 Q38 14 76 4" fill="none" stroke="#8A5A22" strokeWidth="1.3" opacity="0.8" />
+            <line x1="38" y1="9" x2="38" y2="22" stroke="#8A5A22" strokeWidth="1" />
+            {[0, 60, 120, 180, 240, 300].map((a) => (
+              <ellipse key={a} cx="38" cy="30" rx="4.2" ry="8" fill={i % 2 ? "#FF9A1F" : "#F5B21A"} transform={`rotate(${a} 38 33)`} />
+            ))}
+            <circle cx="38" cy="33" r="4" fill="#C2571A" />
+            <path d="M38 44 C 31 48, 31 56, 38 61 C 45 56, 45 48, 38 44 Z" fill="#3A7D2C" />
+            <path d="M38 46 V59" stroke="#2A5D20" strokeWidth="0.8" />
+          </svg>
+        ))}
+      </div>
+    </div>
+  );
+});

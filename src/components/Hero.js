@@ -5,7 +5,7 @@ import { waLink, waMessage } from "../constants/social";
 import HeroVideo from "./HeroVideo";
 import { StatCounter, Tilt, KineticText } from "./ui/primitives";
 import { LeafParticles } from "./ui/Botanical";
-import { StringLights, HangingLanterns, Rangoli } from "./FestiveDecor";
+import { StringLights, HangingLanterns, Rangoli, MarigoldPetals } from "./FestiveDecor";
 import { FESTIVAL, getFestiveState } from "../constants/festive";
 
 const stats = [
@@ -74,6 +74,7 @@ export default function Hero({ onExploreClasses }) {
             <Rangoli className="absolute -right-36 top-32 w-[380px] md:-right-44 md:w-[620px] aspect-square" opacity={0.13} />
             <StringLights className="absolute inset-x-0 top-20 md:top-24 z-[5]" />
             <HangingLanterns />
+            <MarigoldPetals count={9} />
           </>
         )}
         {/* Drifting botanical leaves — sparse + premium */}

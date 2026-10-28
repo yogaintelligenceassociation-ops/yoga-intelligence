@@ -4,7 +4,7 @@ import { MessageCircle, Share2, RotateCcw } from "lucide-react";
 import { FESTIVAL, getFestiveState } from "../constants/festive";
 import { waLink, waMessage } from "../constants/social";
 import { burstSparks } from "../lib/sparks";
-import { Diya, Rangoli } from "./FestiveDecor";
+import { Diya, Rangoli, Toran } from "./FestiveDecor";
 
 const INTENTIONS = ["Body", "Breath", "Mind", "Energy", "Peace"];
 
@@ -43,9 +43,10 @@ export default function LightADiya() {
       id="deepawali"
       ref={sectionRef}
       data-testid="light-a-diya"
-      className="relative overflow-hidden py-16 md:py-24"
+      className="relative overflow-hidden pt-24 pb-16 md:pt-32 md:pb-24"
       style={{ background: "linear-gradient(165deg, #260902 0%, #531705 48%, #86300A 100%)" }}
     >
+      <Toran className="absolute inset-x-0 top-0 z-[5]" />
       <Rangoli className="absolute left-1/2 -translate-x-1/2 -top-24 w-[560px] md:w-[760px] aspect-square" opacity={0.065} />
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[720px] h-[280px] rounded-full blur-3xl pointer-events-none"
