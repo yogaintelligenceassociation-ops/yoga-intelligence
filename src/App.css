@@ -93,6 +93,56 @@
   filter: drop-shadow(0 0 6px rgba(245, 193, 24, 0.9));
 }
 
+/* SVG diya flame + glow */
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(-1.5deg); opacity: 1; }
+  30%      { transform: scale(0.94, 1.1) rotate(1.5deg); opacity: 0.92; }
+  60%      { transform: scale(1.04, 0.95) rotate(-1deg); opacity: 1; }
+  80%      { transform: scale(0.97, 1.06) rotate(1deg); opacity: 0.95; }
+}
+.flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flame-flicker 1.8s ease-in-out infinite; }
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.12); }
+}
+.diya-glow { transform-box: fill-box; transform-origin: center; animation: glow-breathe 2.4s ease-in-out infinite; }
+
+/* String lights */
+@keyframes bulb-twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.85; } }
+.sl-glow { animation: bulb-twinkle 2.2s ease-in-out infinite; }
+.sl-tile:nth-child(3n+2) .sl-glow { animation-delay: 0.7s; }
+.sl-tile:nth-child(3n+3) .sl-glow { animation-delay: 1.4s; }
+.sl-tile:nth-child(5n+4) .sl-glow { animation-duration: 3s; }
+
+/* Hanging lantern sway + rangoli turn */
+@keyframes lantern-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.lantern { transform-origin: 50% 0; animation: lantern-sway 5.5s ease-in-out infinite; }
+@keyframes rangoli-spin { to { transform: rotate(360deg); } }
+.rangoli-spin { animation: rangoli-spin 140s linear infinite; }
+
+/* Ambient orbs + click sparks */
+@keyframes orb-float {
+  0%   { opacity: 0;    transform: translateY(0) scale(0.7); }
+  25%  { opacity: 0.75; transform: translateY(-9px) scale(1.15); }
+  50%  { opacity: 0.35; transform: translateY(-18px) scale(1); }
+  75%  { opacity: 0.8;  transform: translateY(-27px) scale(1.15); }
+  100% { opacity: 0;    transform: translateY(-36px) scale(0.7); }
+}
+.fest-orb { position: absolute; border-radius: 9999px; opacity: 0; animation: orb-float var(--d, 6s) ease-in-out var(--t, 0s) infinite; }
+@keyframes spark-fly {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.2); }
+}
+.spark { position: fixed; width: 6px; height: 6px; border-radius: 9999px; pointer-events: none; z-index: 9998; animation: spark-fly 0.8s ease-out forwards; }
+
+/* Navbar rides under the festive banner (set by DiwaliDecoration). */
+.nav-offset { top: var(--banner-offset, 0px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .flame, .diya-glow, .sl-glow, .lantern, .rangoli-spin, .diwali-flicker { animation: none !important; }
+  .fest-orb, .spark { display: none !important; }
+}
+
 /* ====================================================================
    PREMIUM GLOWS (used on cards, badges, buttons)
    ==================================================================== */
@@ -472,6 +522,7 @@
   *::before,
   *::after {
     animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001s !important;
   }
 }

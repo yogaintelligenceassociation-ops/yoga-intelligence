@@ -2,6 +2,8 @@ import { Instagram, Youtube, Facebook, MessageCircle, Mail, Phone, Star } from "
 import { SOCIAL, BRAND_COLORS, waLink, waMessage } from "../constants/social";
 import BrandLogo from "./BrandLogo";
 import { BotanicalCorners, GoldDivider } from "./ui/Botanical";
+import { Diya } from "./FestiveDecor";
+import { FESTIVAL, getFestiveState } from "../constants/festive";
 
 const quickLinks = [
   { label: "About Us", href: "#about" },
@@ -30,6 +32,7 @@ const socialIcons = [
 ];
 
 export default function Footer() {
+  const festive = getFestiveState();
   const handleNavClick = (href) => {
     if (href.startsWith("http")) return;
     const el = document.querySelector(href);
@@ -56,16 +59,11 @@ export default function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-3 mb-4">
-              <BrandLogo size="md" />
-              <div className="leading-tight">
-                <span className="block font-poppins font-black text-xl text-orange-brand">
-                  YOGA INTELLIGENCE
-                </span>
-                <span className="block font-display text-[11px] text-gold tracking-wide">
-                  संकल्प स्वस्थ भारत का
-                </span>
-              </div>
+            <div className="mb-5">
+              <BrandLogo size="lg" onDark />
+              <span className="block mt-3 font-display text-[12px] text-gold tracking-wide">
+                संकल्प स्वस्थ भारत का
+              </span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed mb-6">
               Connecting nature, yoga, and intelligence — for a life that is truly well. Founded and guided by{" "}
@@ -192,6 +190,19 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      {festive.active && (
+        <div className="container-yi relative z-10 pb-6 flex flex-col items-center gap-3 text-center">
+          <div className="flex items-end gap-3 sm:gap-5">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Diya key={i} className="w-8 sm:w-10 h-auto" delay={i * 0.3} />
+            ))}
+          </div>
+          <p className="font-poppins text-xs sm:text-sm text-[#F5C118] tracking-wide">
+            {FESTIVAL.greeting} from all of us at Yoga Intelligence
+          </p>
+        </div>
+      )}
 
       {/* Royal gold divider */}
       <div className="container-yi relative z-10">

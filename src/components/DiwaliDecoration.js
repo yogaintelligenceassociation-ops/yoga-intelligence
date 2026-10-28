@@ -1,118 +1,142 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { FESTIVAL, getFestiveState } from "../constants/festive";
 import { waLink } from "../constants/social";
+import { burstSparks } from "../lib/sparks";
 
-const BANNER_KEY = "yi_diwali2026_dismissed";
+const BANNER_KEY = "yi_festive_banner_closed";
 
-// Subtle floating light orbs scattered across the viewport
 const ORBS = [
-  { id: 0,  x: "6%",  y: "18%", color: "#F5C118", size: 5, dur: 5.2, delay: 0.0 },
-  { id: 1,  x: "15%", y: "42%", color: "#F07A1A", size: 4, dur: 4.5, delay: 0.8 },
-  { id: 2,  x: "25%", y: "72%", color: "#F5C118", size: 6, dur: 6.0, delay: 1.5 },
-  { id: 3,  x: "38%", y: "28%", color: "#FFB347", size: 4, dur: 4.8, delay: 0.3 },
-  { id: 4,  x: "52%", y: "60%", color: "#F07A1A", size: 5, dur: 5.5, delay: 2.1 },
-  { id: 5,  x: "63%", y: "20%", color: "#F5C118", size: 3, dur: 4.2, delay: 1.0 },
-  { id: 6,  x: "74%", y: "50%", color: "#FFD700", size: 6, dur: 5.8, delay: 0.5 },
-  { id: 7,  x: "83%", y: "35%", color: "#F07A1A", size: 4, dur: 4.6, delay: 1.8 },
-  { id: 8,  x: "91%", y: "65%", color: "#F5C118", size: 5, dur: 5.3, delay: 0.9 },
-  { id: 9,  x: "45%", y: "85%", color: "#FFB347", size: 3, dur: 4.9, delay: 2.5 },
-  { id: 10, x: "10%", y: "88%", color: "#F5C118", size: 4, dur: 5.1, delay: 1.3 },
-  { id: 11, x: "88%", y: "12%", color: "#FFD700", size: 5, dur: 4.7, delay: 0.7 },
+  { x: "6%",  y: "18%", c: "#FFC83D", s: 5, d: 6.0, t: 0.0 },
+  { x: "16%", y: "46%", c: "#FF8A1F", s: 4, d: 5.2, t: 0.8 },
+  { x: "27%", y: "74%", c: "#FFC83D", s: 6, d: 6.8, t: 1.5 },
+  { x: "39%", y: "26%", c: "#FFB347", s: 4, d: 5.6, t: 0.3 },
+  { x: "53%", y: "62%", c: "#FF8A1F", s: 5, d: 6.2, t: 2.1 },
+  { x: "66%", y: "20%", c: "#FFC83D", s: 3, d: 5.0, t: 1.0 },
+  { x: "77%", y: "52%", c: "#FFD700", s: 6, d: 6.6, t: 0.5 },
+  { x: "86%", y: "34%", c: "#FF8A1F", s: 4, d: 5.4, t: 1.8 },
+  { x: "93%", y: "70%", c: "#FFC83D", s: 5, d: 6.1, t: 0.9 },
+  { x: "46%", y: "86%", c: "#FFB347", s: 3, d: 5.8, t: 2.5 },
 ];
 
-export default function DiwaliDecoration() {
-  const [visible, setVisible] = useState(false);
+const wishMsg =
+  "Shubh Deepawali, Yoga Intelligence team! 🪔🙏\n\nWishing you and your family a bright, healthy and joyful Diwali.";
 
+function countdownText({ daysToGo, isToday, isPast }) {
+  if (isToday) return "Happy Diwali today";
+  if (isPast) return "Wishing you a joyous festive season";
+  if (daysToGo === 1) return "Diwali is tomorrow";
+  return `Diwali in ${daysToGo} days`;
+}
+
+function FestiveBanner({ state }) {
+  const [open, setOpen] = useState(() => {
+    try { return !sessionStorage.getItem(BANNER_KEY); } catch { return true; }
+  });
+  const ref = useRef(null);
+
+  // The fixed navbar reads --banner-offset so it sits just below this banner,
+  // then slides up to the top as the banner scrolls out of view.
   useEffect(() => {
-    try {
-      if (!sessionStorage.getItem(BANNER_KEY)) setVisible(true);
-    } catch {}
-  }, []);
+    const root = document.documentElement;
+    const sync = () => {
+      const h = open && ref.current ? ref.current.offsetHeight : 0;
+      root.style.setProperty("--banner-offset", `${Math.max(0, h - window.scrollY)}px`);
+    };
+    sync();
+    window.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    const ro = ref.current && typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : null;
+    if (ro) ro.observe(ref.current);
+    return () => {
+      window.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+      if (ro) ro.disconnect();
+      root.style.setProperty("--banner-offset", "0px");
+    };
+  }, [open]);
 
-  const dismiss = () => {
+  if (!open) return null;
+
+  const close = () => {
     try { sessionStorage.setItem(BANNER_KEY, "1"); } catch {}
-    setVisible(false);
+    setOpen(false);
   };
 
-  const offerMsg =
-    "Namaste Yoga Intelligence 🙏\n\nI saw your Diwali special offer and I'd like to claim my FREE first session! 🪔\n\nCould you please share the available schedule?\n\nThank you! 🌿";
+  return (
+    <div
+      ref={ref}
+      data-testid="festive-banner"
+      className="relative z-40 text-white"
+      style={{
+        background:
+          "linear-gradient(90deg, #6E1200 0%, #B93C00 22%, #E57A00 42%, #F5A623 50%, #E57A00 58%, #B93C00 78%, #6E1200 100%)",
+      }}
+    >
+      <div className="container-yi flex items-center justify-center gap-x-2.5 sm:gap-x-3 py-2 pr-10 sm:pr-12 text-[11px] sm:text-sm font-semibold">
+        <span className="diwali-flicker">🪔</span>
+        <span className="font-poppins tracking-wide text-center">
+          {FESTIVAL.greeting}
+          <span className="hidden md:inline"> from Yoga Intelligence</span>
+        </span>
+        <span className="inline-flex items-center rounded-full bg-black/25 px-2.5 py-0.5 text-[10px] sm:text-xs font-bold tracking-wide whitespace-nowrap">
+          {countdownText(state)}
+        </span>
+        <a
+          href={waLink(wishMsg)}
+          target="_blank"
+          rel="noreferrer"
+          className="hidden sm:inline-flex items-center rounded-full bg-white text-[#B93C00] px-3 py-1 text-xs font-black hover:bg-[#FFF3D6] transition-colors whitespace-nowrap"
+        >
+          Send wishes →
+        </a>
+        <span className="diwali-flicker hidden sm:inline" style={{ animationDelay: "0.6s" }}>🪔</span>
+      </div>
+      <button
+        onClick={close}
+        aria-label="Dismiss festive banner"
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full text-white/75 hover:text-white hover:bg-white/15 transition-colors"
+      >
+        <X size={15} />
+      </button>
+    </div>
+  );
+}
+
+export default function DiwaliDecoration() {
+  const state = getFestiveState();
+  const active = state.active;
+
+  // Tap/click anywhere → a tiny golden spark burst.
+  useEffect(() => {
+    if (!active) return;
+    const onDown = (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      burstSparks(e.clientX, e.clientY, 9);
+    };
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [active]);
+
+  if (!active) return null;
 
   return (
     <>
-      {/* ── Festive Diwali banner ── */}
-      <AnimatePresence>
-        {visible && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="relative z-[70] overflow-hidden"
-          >
-            <div
-              className="relative flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2.5 px-10 text-white text-xs sm:text-sm font-semibold text-center"
-              style={{
-                background:
-                  "linear-gradient(90deg, #7B1200 0%, #C94400 20%, #E07A00 40%, #FFB300 50%, #E07A00 60%, #C94400 80%, #7B1200 100%)",
-              }}
-            >
-              <span className="diwali-flicker">🪔</span>
-              <span>
-                Happy Diwali from Yoga Intelligence! &nbsp;✨&nbsp; Special Offer:
-                &nbsp;<span className="underline decoration-dotted">First Session FREE</span>&nbsp;
-                this festive season
-              </span>
-              <a
-                href={waLink(offerMsg)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-block bg-white text-[#C94400] font-black text-xs px-3 py-1 rounded-full hover:bg-[#FFF8E1] transition-colors whitespace-nowrap"
-              >
-                Claim Now →
-              </a>
-              <span className="diwali-flicker" style={{ animationDelay: "0.5s" }}>🪔</span>
-              <button
-                onClick={dismiss}
-                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity p-1"
-                aria-label="Dismiss Diwali banner"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Ambient floating light orbs — very subtle, non-intrusive ── */}
-      <div
-        className="fixed inset-0 pointer-events-none overflow-hidden"
-        style={{ zIndex: 2 }}
-        aria-hidden="true"
-      >
-        {ORBS.map((orb) => (
-          <motion.div
-            key={orb.id}
-            className="absolute rounded-full"
+      <FestiveBanner state={state} />
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 2 }} aria-hidden="true">
+        {ORBS.map((o, i) => (
+          <span
+            key={i}
+            className="fest-orb"
             style={{
-              left: orb.x,
-              top: orb.y,
-              width: orb.size,
-              height: orb.size,
-              background: orb.color,
-              filter: `blur(0.5px)`,
-              boxShadow: `0 0 ${orb.size * 3}px ${orb.color}`,
-            }}
-            animate={{
-              opacity: [0, 0.55, 0.2, 0.7, 0],
-              y: [0, -20, -8, -28, 0],
-              scale: [0.7, 1.3, 0.9, 1.1, 0.7],
-            }}
-            transition={{
-              duration: orb.dur,
-              repeat: Infinity,
-              delay: orb.delay,
-              ease: "easeInOut",
+              left: o.x,
+              top: o.y,
+              width: o.s,
+              height: o.s,
+              background: o.c,
+              boxShadow: `0 0 ${o.s * 3}px ${o.c}`,
+              "--d": `${o.d}s`,
+              "--t": `${o.t}s`,
             }}
           />
         ))}

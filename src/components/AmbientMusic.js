@@ -139,7 +139,7 @@ export default function AmbientMusic() {
             onClick={toggle}
             aria-label={playing ? "Turn off background music" : "Play calming background music"}
             data-testid="ambient-music-toggle"
-            className="fixed bottom-5 left-5 z-[1000] w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-1 ring-white/40 transition-transform hover:scale-110 active:scale-95"
+            className="fixed bottom-5 left-5 z-40 w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-1 ring-white/40 transition-transform hover:scale-110 active:scale-95"
             style={{
               background: playing
                 ? "linear-gradient(135deg, #3A7D2C, #4CAF50)"

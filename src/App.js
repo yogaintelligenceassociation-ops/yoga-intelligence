@@ -17,6 +17,7 @@ import FloatingWhatsApp from "./components/FloatingWhatsApp";
 import AmbientMusic from "./components/AmbientMusic";
 import DiwaliDecoration from "./components/DiwaliDecoration";
 import ConsultationCTA from "./components/ConsultationCTA";
+import LightADiya from "./components/LightADiya";
 
 const scrollTo = (id) =>
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -56,6 +57,7 @@ export default function App() {
         <Products />
         <Lifestyle />
         <YoYogi isAuthenticated={isAuthenticated} onLoginClick={openAuth} />
+        <LightADiya />
       </main>
       <Footer />
       <AuthModal isOpen={isAuthModalOpen} onClose={closeAuth} onAuthSuccess={handleAuthSuccess} />

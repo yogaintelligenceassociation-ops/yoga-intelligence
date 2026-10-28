@@ -5,6 +5,8 @@ import { waLink, waMessage } from "../constants/social";
 import HeroVideo from "./HeroVideo";
 import { StatCounter, Tilt, KineticText } from "./ui/primitives";
 import { LeafParticles } from "./ui/Botanical";
+import { StringLights, HangingLanterns, Rangoli } from "./FestiveDecor";
+import { FESTIVAL, getFestiveState } from "../constants/festive";
 
 const stats = [
   { number: "500+", label: "Students Transformed", icon: Sparkles },
@@ -31,6 +33,7 @@ const marqueeItems = [
 
 export default function Hero({ onExploreClasses }) {
   const sectionRef = useRef(null);
+  const festive = getFestiveState();
 
   // Scroll-linked fade/parallax is a desktop-only flourish. On phones the hero
   // is tall and scrolls naturally, so fading it out while reading feels broken.
@@ -61,6 +64,18 @@ export default function Hero({ onExploreClasses }) {
       >
         {/* Aurora ambient mesh */}
         <div className="aurora" aria-hidden="true" />
+        {festive.active && (
+          <>
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse 70% 45% at 50% 0%, rgba(245,166,35,0.16) 0%, transparent 70%)" }}
+              aria-hidden="true"
+            />
+            <Rangoli className="absolute -right-36 top-32 w-[380px] md:-right-44 md:w-[620px] aspect-square" opacity={0.13} />
+            <StringLights className="absolute inset-x-0 top-20 md:top-24 z-[5]" />
+            <HangingLanterns />
+          </>
+        )}
         {/* Drifting botanical leaves — sparse + premium */}
         <LeafParticles count={6} />
         {/* Decorative ambient blobs */}
@@ -84,8 +99,18 @@ export default function Hero({ onExploreClasses }) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
-                className="flex justify-center lg:justify-start"
+                className="flex flex-wrap justify-center lg:justify-start gap-2"
               >
+                {festive.active && (
+                  <span
+                    data-testid="hero-festive-chip"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs md:text-sm font-bold tracking-wide text-white shadow-lg shadow-orange-300/50"
+                    style={{ background: "linear-gradient(135deg, #C94400 0%, #F5A623 100%)" }}
+                  >
+                    <span className="diwali-flicker">🪔</span>
+                    {FESTIVAL.greeting}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs md:text-sm font-bold uppercase tracking-widest bg-gradient-to-r from-[#3A7D2C]/10 to-[#4CAF50]/10 text-[#3A7D2C] border-2 border-[#3A7D2C]/30 badge-pulse">
                   <span className="w-2 h-2 rounded-full bg-[#3A7D2C] animate-pulse" />
                   India's Premier Yoga Intelligence

@@ -85,7 +85,7 @@ export default function Navbar({ isAuthenticated, authPhone, authName, onLoginCl
   return (
     <nav
       data-testid="navbar"
-      className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 ${
+      className={`nav-offset fixed left-0 right-0 z-50 transition-colors duration-300 ${
         scrolled
           ? "bg-white/95 backdrop-blur-xl shadow-[0_6px_24px_rgba(16,24,40,0.08)] border-b border-black/5"
           : "bg-transparent"
@@ -103,12 +103,12 @@ export default function Navbar({ isAuthenticated, authPhone, authName, onLoginCl
             data-testid="navbar-brand"
           >
             <BrandLogo size="md" className="group-hover:scale-105" />
-            <div className="flex flex-col min-w-0">
-              <span className="font-poppins font-black text-base sm:text-lg md:text-xl lg:text-2xl leading-tight text-orange-brand whitespace-nowrap">
-                YOGA INTELLIGENCE
+            <div className="hidden xl:flex flex-col min-w-0 leading-tight pl-3 border-l border-black/10">
+              <span className="text-[10px] text-[#3A7D2C] font-semibold tracking-[0.18em] uppercase whitespace-nowrap">
+                Guided by Yogacharya
               </span>
-              <span className="hidden sm:block text-[9px] md:text-[10px] text-[#3A7D2C] font-semibold tracking-wider uppercase whitespace-nowrap">
-                By Yogacharya Mrityunjay Pandey
+              <span className="font-poppins font-bold text-[15px] text-[#1A1A1A] whitespace-nowrap">
+                Mrityunjay Pandey
               </span>
             </div>
           </motion.a>
