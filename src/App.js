@@ -15,6 +15,8 @@ import AuthModal from "./components/AuthModal";
 import ScrollProgress from "./components/ScrollProgress";
 import FloatingWhatsApp from "./components/FloatingWhatsApp";
 import AmbientMusic from "./components/AmbientMusic";
+import DiwaliDecoration from "./components/DiwaliDecoration";
+import ConsultationCTA from "./components/ConsultationCTA";
 
 const scrollTo = (id) =>
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -33,9 +35,11 @@ export default function App() {
 
   return (
     <div className="App">
+      <DiwaliDecoration />
       <Toaster position="top-center" richColors closeButton />
       <ScrollProgress />
       <FloatingWhatsApp />
+      <ConsultationCTA />
       <AmbientMusic />
       <Navbar
         isAuthenticated={isAuthenticated}

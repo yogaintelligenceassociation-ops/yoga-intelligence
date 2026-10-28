@@ -19,18 +19,13 @@ export default function BrandLogo({ size = "md", className = "" }) {
 
   return (
     <div
-      className={`relative ${s.box} rounded-full bg-white shadow-[0_6px_18px_rgba(240,122,26,0.18)] ring-2 ring-[#F07A1A]/30 flex items-center justify-center overflow-hidden transition-transform duration-300 ${className}`}
+      className={`relative ${s.box} rounded-full bg-white shadow-[0_6px_18px_rgba(240,122,26,0.22)] ring-2 ring-[#F07A1A]/35 flex items-center justify-center overflow-hidden transition-transform duration-300 ${className}`}
       aria-hidden="true"
     >
-      {/* soft inner orange glow */}
-      <span
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle at 30% 30%, rgba(245,193,24,0.18), transparent 60%)" }}
-      />
       <img
         src={IMAGES.logo}
         alt="Yoga Intelligence"
-        className={`${s.img} object-contain relative z-10`}
+        className={`${s.img} object-contain relative z-10 p-0.5`}
         draggable="false"
       />
     </div>

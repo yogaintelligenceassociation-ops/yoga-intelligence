@@ -79,6 +79,21 @@
 }
 
 /* ====================================================================
+   DIWALI FESTIVE ANIMATIONS
+   ==================================================================== */
+@keyframes diwali-flicker {
+  0%, 100% { opacity: 1;    transform: scaleY(1)   rotate(-2deg); }
+  25%       { opacity: 0.85; transform: scaleY(1.08) rotate(1deg);  }
+  50%       { opacity: 1;    transform: scaleY(0.95) rotate(-1deg); }
+  75%       { opacity: 0.9;  transform: scaleY(1.06) rotate(2deg);  }
+}
+.diwali-flicker {
+  display: inline-block;
+  animation: diwali-flicker 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(245, 193, 24, 0.9));
+}
+
+/* ====================================================================
    PREMIUM GLOWS (used on cards, badges, buttons)
    ==================================================================== */
 .glow-green {

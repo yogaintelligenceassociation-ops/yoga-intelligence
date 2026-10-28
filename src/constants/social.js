@@ -86,11 +86,11 @@ export const IMAGES = {
 
   // Editorial lifestyle imagery
   lifestyle: {
-    // Surya Namaskar: silhouette in Anjaneyasana (sun salutation lunge) at sunrise
-    suryaNamaskar: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=900&q=85&auto=format&fit=crop",
+    // Surya Namaskar: flowing sun-salutation sequence at golden hour
+    suryaNamaskar: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=900&q=85&auto=format&fit=crop",
     pranayama: "https://images.unsplash.com/photo-1620919203384-7a23fdeb97fa?w=900&q=85&auto=format&fit=crop",
-    // Back Pain: group doing yoga floor work / spinal extensions on mats
-    backPain: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=900&q=85&auto=format&fit=crop",
+    // Back Pain: yoga class — participants in spinal extension / bridge poses
+    backPain: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=85&auto=format&fit=crop",
     morning: "https://images.unsplash.com/photo-1636619297905-54f124aa90b2?w=900&q=85&auto=format&fit=crop",
     // Nutrition: colourful Buddha bowl — avocado, chickpeas, tomatoes, radish, sweet potato
     nutrition: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900&q=85&auto=format&fit=crop",
