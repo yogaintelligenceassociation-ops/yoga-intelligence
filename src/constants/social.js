@@ -89,8 +89,8 @@ export const IMAGES = {
     // Surya Namaskar: flowing sun-salutation sequence at golden hour
     suryaNamaskar: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=900&q=85&auto=format&fit=crop",
     pranayama: "https://images.unsplash.com/photo-1620919203384-7a23fdeb97fa?w=900&q=85&auto=format&fit=crop",
-    // Back Pain: yoga class — participants in spinal extension / bridge poses
-    backPain: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=85&auto=format&fit=crop",
+    // Back Pain: cobra (bhujangasana) — gentle spinal extension, Pexels (free licence)
+    backPain: "https://images.pexels.com/photos/6958063/pexels-photo-6958063.jpeg?auto=compress&cs=tinysrgb&w=900",
     morning: "https://images.unsplash.com/photo-1636619297905-54f124aa90b2?w=900&q=85&auto=format&fit=crop",
     // Nutrition: colourful Buddha bowl — avocado, chickpeas, tomatoes, radish, sweet potato
     nutrition: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900&q=85&auto=format&fit=crop",
